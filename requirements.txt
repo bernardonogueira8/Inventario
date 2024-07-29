@@ -1,3 +1,6 @@
-streamlit
 pandas
+streamlit
+io
+datetime
 openpyxl
+zipfile
