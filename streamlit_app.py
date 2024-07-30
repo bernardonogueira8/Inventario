@@ -103,7 +103,8 @@ def main():
     st.title("Sistema de Inventário")
 
     opcao = st.selectbox(
-        "Escolha uma opção:", ["Gerar lista de contagem", "Gerar apuração"]
+        "Escolha uma opção:",
+        ["Gerar lista de contagem", "Gerar apuração SIGAF", "Gerar apuração SIMPAS"],
     )
 
     if opcao == "Gerar lista de contagem":
@@ -111,13 +112,13 @@ def main():
 
         item_selecionado = st.text_input("Nome da Lista:")
 
-        estoque_file = st.file_uploader("Upload da planilha de Estoque:", type=["xlsx"])
+        estoque_file1 = st.file_uploader("Upload da planilha de Estoque:", type=["xlsx"])
         enderecos_file = st.file_uploader(
             "Upload da planilha de Endereços:", type=["xlsx"]
         )
 
-        if estoque_file and enderecos_file:
-            estoque_df = carregar_planilha(estoque_file, skiprows=7)
+        if estoque_file1 and enderecos_file:
+            estoque_df = carregar_planilha(estoque_file1, skiprows=7)
             enderecos_df = carregar_todas_abas(enderecos_file)
 
             if estoque_df is not None and enderecos_df is not None:
@@ -172,15 +173,22 @@ def main():
                 nome_arquivo_conferencia = (
                     f"{item_selecionado}_{data_atual}_conferencia.xlsx"
                 )
+                nome_arquivo_enderecaemento = (
+                    f"{item_selecionado}_{data_atual}_endereco.xlsx"
+                )
 
                 wb1 = estilizar_dataframe(merged_df, "Contagem 1")
                 wb2 = estilizar_dataframe(merged_df, "Contagem 2")
                 wb_conferencia = gerar_planilha_conferencia(merged_df, "Conferência")
+                wb_endereco = gerar_planilha_conferencia(
+                    enderecos_df, "Endereço"
+                )
 
                 # Convertendo para bytes
                 excel_bytes_1 = to_excel_bytes(wb1)
                 excel_bytes_2 = to_excel_bytes(wb2)
                 excel_bytes_conferencia = to_excel_bytes(wb_conferencia)
+                excel_bytes_enderecaemento = to_excel_bytes(wb_endereco)
 
                 # Criando arquivo ZIP
                 arquivos = [
@@ -188,6 +196,7 @@ def main():
                     (nome_arquivo_1, excel_bytes_1),
                     (nome_arquivo_2, excel_bytes_2),
                     (nome_arquivo_conferencia, excel_bytes_conferencia),
+                    (nome_arquivo_enderecaemento, excel_bytes_enderecaemento)
                 ]
                 arquivo_zip_bytes = criar_arquivo_zip(arquivos)
 
@@ -203,10 +212,10 @@ def main():
                     mime="application/zip",
                 )
 
-    elif opcao == "Gerar apuração":
-        st.subheader("Gerar Apuração")
+    elif opcao == "Gerar apuração SIGAF":
+        st.subheader("Gerar Apuração SIGAF")
         estoque_file2 = st.file_uploader(
-            "Upload da planilha de Estoque:", type=["xlsx"]
+            "Upload da planilha de Estoque(Gerada):", type=["xlsx"]
         )
         conferencia_file = st.file_uploader(
             "Upload da planilha de Conferencia:", type=["xlsx"]
@@ -224,7 +233,7 @@ def main():
                 .sum()
                 .reset_index()
             )
-            estoque_df = carregar_planilha(estoque_file2, skiprows=7)
+            estoque_df = carregar_planilha(estoque_file2, skiprows=0)
             estoque_df = estoque_df[
                 [
                     "Código Simpas",
@@ -307,6 +316,56 @@ def main():
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
 
+    elif opcao == "Gerar apuração SIMPAS":
+        st.subheader("Gerar Apuração SIMPAS")
+        estoque_file3 = st.file_uploader(
+            "Upload da planilha de Estoque Final:", type=["xlsx"]
+        )
+        if estoque_file3 :
+
+            estoque_df = carregar_planilha(estoque_file3, skiprows=7)
+            estoque_df = estoque_df[
+                [
+                    "Código Simpas",
+                    "Medicamento",
+                    "Quantidade Encontrada",
+                    "Programa Saúde",
+                ]
+            ]
+            estoque_df["Código Simpas"] = estoque_df["Código Simpas"].astype(str)
+            df = (
+                estoque_df.groupby(
+                    [
+                        "Código Simpas",
+                        "Medicamento",
+                        "Programa Saúde",
+                    ]
+                )["Quantidade Encontrada"]
+                .sum()
+                .reset_index()
+            )
+            df = df.sort_values(by='Código Simpas')
+            df = df.rename(
+                columns={
+                    "Quantidade Encontrada": "Quantidade",
+                }
+            )
+
+            # Estilizar o DataFrame
+            wb = estilizar_dataframe(df, "Apuração SIMPAS")
+            excel_bytes = to_excel_bytes(wb)
+
+            # Exibir tabelas resultantes
+            st.write("Resultado da Análise:")
+            st.dataframe(df)
+
+            # Botão de download
+            st.download_button(
+                label="Baixar Planilha de Apuração SIMPAS",
+                data=excel_bytes,
+                file_name=f"Apuracao_SIMPAS_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
 
 if __name__ == "__main__":
     main()
