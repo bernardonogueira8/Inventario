@@ -203,10 +203,14 @@ def main():
                     mime="application/zip",
                 )
 
-    if opcao == "Gerar apuração":
+    elif opcao == "Gerar apuração":
         st.subheader("Gerar Apuração")
-        estoque_file2 = st.file_uploader("Upload da planilha de Estoque:", type=["xlsx"])
-        conferencia_file = st.file_uploader("Upload da planilha de Conferencia:", type=["xlsx"])
+        estoque_file2 = st.file_uploader(
+            "Upload da planilha de Estoque:", type=["xlsx"]
+        )
+        conferencia_file = st.file_uploader(
+            "Upload da planilha de Conferencia:", type=["xlsx"]
+        )
 
         if estoque_file2 and conferencia_file:
             conferencia_df = carregar_planilha(conferencia_file, skiprows=0)
@@ -264,13 +268,13 @@ def main():
                 }
             )
 
-            df['Contagem'] = pd.to_numeric(df['Contagem'], errors='coerce')
-            df['SIGAF'] = pd.to_numeric(df['SIGAF'], errors='coerce')
-            df['Valor Unitário'] = pd.to_numeric(df['Valor Unitário'], errors='coerce')
+            df["Contagem"] = pd.to_numeric(df["Contagem"], errors="coerce")
+            df["SIGAF"] = pd.to_numeric(df["SIGAF"], errors="coerce")
+            df["Valor Unitário"] = pd.to_numeric(df["Valor Unitário"], errors="coerce")
 
-            df["Dirença"] = df["Contagem"] - df["SIGAF"]
+            df["Diferença"] = df["Contagem"] - df["SIGAF"]
             df["Vlr Total"] = df["Contagem"] * df["Valor Unitário"]
-            df["Vlr Divergencia"] = df["Dirença"] * df["Valor Unitário"]
+            df["Vlr Divergencia"] = df["Diferença"] * df["Valor Unitário"]
 
             new = [
                 "Código Simpas",
@@ -279,7 +283,7 @@ def main():
                 "Validade",
                 "Contagem",
                 "SIGAF",
-                "Dirença",
+                "Diferença",
                 "Valor Unitário",
                 "Vlr Total",
                 "Vlr Divergencia",
@@ -287,17 +291,21 @@ def main():
             ]
             df = df[new]
 
+            # Estilizar o DataFrame
+            wb = estilizar_dataframe(df, "Apuração")
+            excel_bytes = to_excel_bytes(wb)
+
             # Exibir tabelas resultantes
             st.write("Resultado da Análise:")
             st.dataframe(df)
-            
+
             # Botão de download
-                st.download_button(
-                    label="Planilha de Conferencia",
-                    data=df,
-                    file_name=f"Conferencia_{data_atual}.xlsx",
-                    mime="application/zip",
-                )
+            st.download_button(
+                label="Baixar Planilha de Apuração",
+                data=excel_bytes,
+                file_name=f"Apuracao_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
 
 
 if __name__ == "__main__":
