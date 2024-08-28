@@ -144,8 +144,6 @@ def main():
                         "LOTE": "Lote",
                     }
                 )
-
-                enderecos_df["Endereço"].fillna(enderecos_df["05/26"], inplace=True)
                 enderecos_df["Lote"] = enderecos_df["Lote"].astype(str).str.rstrip()
                 estoque = estoque.drop(columns=["Contagem"])
                 enderecos = enderecos_df
