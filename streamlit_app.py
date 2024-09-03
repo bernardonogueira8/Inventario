@@ -87,6 +87,7 @@ def gerar_planilha_conferencia(df, nome):
     df_conferencia["Valor Adotado"] = df_conferencia["Contagem"]
     df_conferencia = df_conferencia[
         [
+            "Endereço",
             "Medicamento",
             "Lote",
             "Data Vencimento",
