@@ -84,6 +84,7 @@ def gerar_planilha_conferencia(df, nome):
     df_conferencia["Contagem 1"] = df_conferencia["Contagem"]
     df_conferencia["Contagem 2"] = df_conferencia["Contagem"]
     df_conferencia["Contagem 3"] = df_conferencia["Contagem"]
+    df_conferencia["Contagem 4"] = df_conferencia["Contagem"]
     df_conferencia["Valor Adotado"] = df_conferencia["Contagem"]
     df_conferencia = df_conferencia[
         [
@@ -94,6 +95,7 @@ def gerar_planilha_conferencia(df, nome):
             "Contagem 1",
             "Contagem 2",
             "Contagem 3",
+            "Contagem 4",
             "Valor Adotado",
         ]
     ]
