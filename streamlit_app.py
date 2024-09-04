@@ -165,6 +165,7 @@ def main():
                     "Contagem",
                 ]
                 merged_df = merged_df[colunas_reordenadas].sort_values(by="Medicamento")
+                merged_df = merged_df[colunas_reordenadas].sort_values(by="Endereço")
 
                 merged_df = merged_df.dropna(how='all')
                 merged_df = merged_df.drop_duplicates()
