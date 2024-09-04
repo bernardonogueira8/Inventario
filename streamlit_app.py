@@ -166,6 +166,9 @@ def main():
                 ]
                 merged_df = merged_df[colunas_reordenadas].sort_values(by="Medicamento")
 
+                merged_df = merged_df.dropna(how='all')
+                merged_df = merged_df.drop_duplicates()
+
                 nome_arquivo_1 = f"{item_selecionado}_contagem_{data_atual}.xlsx"
                 nome_arquivo_conferencia = (
                     f"{item_selecionado}_{data_atual}_conferencia.xlsx"
