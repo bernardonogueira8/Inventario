@@ -153,9 +153,10 @@ def main():
                 enderecos = enderecos[
                     ["Endereço", "DESCRIÇÃO", "Programa", "Lote", "VALIDADE"]
                 ]
-                enderecos_df = enderecos_df[["Endereço", "Programa", "Lote"]]
+                enderecos_df = enderecos_df[["Endereço", "Lote"]]
 
                 merged_df = pd.merge(estoque_df, enderecos_df, on="Lote", how="left")
+                merged_df['Programa'] = item_selecionado
                 colunas_reordenadas = [
                     "Endereço",
                     "Medicamento",
