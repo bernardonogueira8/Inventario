@@ -240,6 +240,7 @@ def main():
                     "Programa Saúde",
                 ]
             ]
+            conferencia_df["Lote"] = conferencia_df["Lote"].astype(str)
             estoque_df["Lote"] = estoque_df["Lote"].astype(str)
             estoque_df["Código Simpas"] = estoque_df["Código Simpas"].astype(str)
             estoque_df = (
