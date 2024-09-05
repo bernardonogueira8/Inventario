@@ -156,7 +156,7 @@ def main():
                 enderecos_df = enderecos_df[["Endereço", "Lote"]]
 
                 merged_df = pd.merge(estoque_df, enderecos_df, on="Lote", how="left")
-                merged_df['Programa'] = item_selecionado
+                merged_df["Programa"] = item_selecionado
                 colunas_reordenadas = [
                     "Endereço",
                     "Medicamento",
@@ -168,7 +168,7 @@ def main():
                 merged_df = merged_df[colunas_reordenadas].sort_values(by="Medicamento")
                 merged_df = merged_df[colunas_reordenadas].sort_values(by="Endereço")
 
-                merged_df = merged_df.dropna(how='all')
+                merged_df = merged_df.dropna(how="all")
                 merged_df = merged_df.drop_duplicates()
 
                 nome_arquivo_1 = f"{item_selecionado}_contagem_{data_atual}.xlsx"
@@ -209,6 +209,8 @@ def main():
 
     elif opcao == "Gerar apuração SIGAF":
         st.subheader("Gerar Apuração SIGAF")
+        item_selecionado2 = st.text_input("Nome da Lista:")
+
         estoque_file2 = st.file_uploader(
             "Upload da planilha de Estoque(Gerada):", type=["xlsx"]
         )
@@ -303,12 +305,12 @@ def main():
             # Exibir tabelas resultantes
             st.write("Resultado da Análise:")
             st.dataframe(df)
-
+            data_atual = datetime.now().strftime("%Y%m%d")
             # Botão de download
             st.download_button(
                 label="Baixar Planilha de Apuração",
                 data=excel_bytes,
-                file_name=f"Apuracao_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                file_name=f"{item_selecionado2}_Apuracao {data_atual}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
 
@@ -346,12 +348,7 @@ def main():
                     "Quantidade Encontrada": "Quantidade",
                 }
             )
-            new = [
-                "Código Simpas",
-                "Medicamento",
-                'Quantidade',
-                "Programa Saúde"
-            ]
+            new = ["Código Simpas", "Medicamento", "Quantidade", "Programa Saúde"]
             df = df[new]
 
             # Estilizar o DataFrame
