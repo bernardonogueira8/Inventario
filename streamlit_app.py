@@ -139,6 +139,7 @@ def main():
                     ["Medicamento", "Lote", "Data Vencimento", "Contagem"]
                 ]
                 estoque_df["Lote"] = estoque_df["Lote"].astype(str)
+                estoque = estoque.drop(columns=["Contagem"])
 
                 enderecos_df = enderecos_df.rename(
                     columns={
@@ -148,7 +149,6 @@ def main():
                     }
                 )
                 enderecos_df["Lote"] = enderecos_df["Lote"].astype(str).str.rstrip()
-                estoque = estoque.drop(columns=["Contagem"])
                 enderecos = enderecos_df
                 enderecos = enderecos[
                     ["Endereço", "DESCRIÇÃO", "Programa", "Lote", "VALIDADE"]
@@ -211,11 +211,11 @@ def main():
         st.subheader("Gerar Apuração SIGAF")
         item_selecionado2 = st.text_input("Nome da Lista:")
 
-        estoque_file2 = st.file_uploader(
-            "Upload da planilha de Estoque(Gerada):", type=["xlsx"]
-        )
         conferencia_file = st.file_uploader(
             "Upload da planilha de Conferencia:", type=["xlsx"]
+        )
+        estoque_file2 = st.file_uploader(
+            "Upload da planilha de Estoque(Nova):", type=["xlsx"]
         )
 
         if estoque_file2 and conferencia_file:
@@ -232,7 +232,9 @@ def main():
                 .sum()
                 .reset_index()
             )
-            estoque_df = carregar_planilha(estoque_file2, skiprows=0)
+            conferencia_df["Lote"] = conferencia_df["Lote"].astype(str)
+            
+            estoque_df = carregar_planilha(estoque_file2, skiprows=7)
             estoque_df = estoque_df[
                 [
                     "Código Simpas",
@@ -244,7 +246,6 @@ def main():
                     "Programa Saúde",
                 ]
             ]
-            conferencia_df["Lote"] = conferencia_df["Lote"].astype(str)
             estoque_df["Lote"] = estoque_df["Lote"].astype(str)
             estoque_df["Código Simpas"] = estoque_df["Código Simpas"].astype(str)
             estoque_df = (
@@ -317,6 +318,7 @@ def main():
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
 
+    
     elif opcao == "Gerar apuração SIMPAS":
         st.subheader("Gerar Apuração SIMPAS")
         estoque_file3 = st.file_uploader(
