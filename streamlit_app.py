@@ -274,7 +274,7 @@ def main():
             df = pd.merge(
                 conferencia_df,
                 estoque_df,
-                how="left",
+                how="outer",
                 on=["Lote", "Medicamento", "Data Vencimento"],
             )
             df = df.sort_values(by="Medicamento")
