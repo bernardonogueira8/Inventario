@@ -233,7 +233,7 @@ def main():
                 .reset_index()
             )
             conferencia_df["Lote"] = conferencia_df["Lote"].astype(str)
-            
+
             estoque_df = carregar_planilha(estoque_file2, skiprows=7)
             estoque_df = estoque_df[
                 [
@@ -304,6 +304,22 @@ def main():
             df = df.sort_values(by="Medicamento")
             # Estilizar o DataFrame
             wb = estilizar_dataframe(df, "Apuração")
+            ws = wb.active
+            # Começando da linha 2, assumindo que a primeira linha é o cabeçalho
+            for row in range(2, len(df) + 2):  
+                # Fórmula para cada linha
+                ws[f'G{row}'] = f'=E{row}-F{row}'
+                ws[f"I{row}"] = f"=E{row}*H{row}"
+                ws[f"J{row}"] = f"=G{row}*H{row}"
+
+            # Inserir "ASS" na célula abaixo da última linha
+            ultima_linha = len(df) + 2
+
+            ws[f"I{ultima_linha}"] = f"=SOMA(I2:I{ultima_linha-1})"
+            ws[f"J{ultima_linha}"] = f"=SOMA(J2:J{ultima_linha-1})"
+
+            ws[f"J{ultima_linha+1}"] = f"=J{ultima_linha}/I{ultima_linha}"
+
             excel_bytes = to_excel_bytes(wb)
 
             # Exibir tabelas resultantes
@@ -318,7 +334,6 @@ def main():
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
 
-    
     elif opcao == "Gerar apuração SIMPAS":
         st.subheader("Gerar Apuração SIMPAS")
         estoque_file3 = st.file_uploader(
