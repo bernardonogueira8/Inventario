@@ -183,6 +183,14 @@ def main():
                 wb_conferencia = gerar_planilha_conferencia(merged_df, "Conferência")
                 wb_endereco = estilizar_dataframe(enderecos, "Endereço")
                 wb_estoque = estilizar_dataframe(estoque, "Estoque")
+                ws = wb1.active
+                ws.oddHeader.center.text = (
+                    f"INVENTÁRIO ROTATIVO 2024\n{item_selecionado}"
+                )
+                ws.oddHeader.right.text = "CONTAGEM:____"
+
+                ws.oddFooter.center.text = "Página &P de &N"
+                ws.oddFooter.right.text = "ASS:_______________________________\nASS:_______________________________"
 
                 excel_bytes_estoque = to_excel_bytes(wb_estoque)
                 excel_bytes = to_excel_bytes(wb1)
@@ -319,6 +327,12 @@ def main():
             ws[f"J{ultima_linha}"] = f"=SOMA(J2:J{ultima_linha-1})"
 
             ws[f"J{ultima_linha+1}"] = f"=J{ultima_linha}/I{ultima_linha}"
+            # Configurar o cabeçalho
+            ws.oddHeader.center.text = (
+                f"CONTAGEM x SIGAF\n{item_selecionado2}"  # Texto no centro do cabeçalho
+            )
+            ws.oddHeader.center.size = 12  # Tamanho da fonte
+            ws.oddHeader.center.font = "Arial,Bold"  # Fonte e estilo do cabeçalho
 
             excel_bytes = to_excel_bytes(wb)
 
