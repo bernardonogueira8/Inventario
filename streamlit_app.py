@@ -323,8 +323,8 @@ def main():
             # Inserir "ASS" na célula abaixo da última linha
             ultima_linha = len(df) + 2
 
-            ws[f"I{ultima_linha}"] = f"=SOMA(I2:I{ultima_linha-1})"
-            ws[f"J{ultima_linha}"] = f"=SOMA(J2:J{ultima_linha-1})"
+            ws[f"I{ultima_linha}"] = f"=SUM(I2:I{ultima_linha-1})"
+            ws[f"J{ultima_linha}"] = f"=SUM(J2:J{ultima_linha-1})"
 
             ws[f"J{ultima_linha+1}"] = f"=J{ultima_linha}/I{ultima_linha}"
             # Configurar o cabeçalho
