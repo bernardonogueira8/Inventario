@@ -7,6 +7,7 @@ from openpyxl.styles import Font, Alignment, Border, Side
 from openpyxl.utils.dataframe import dataframe_to_rows
 import zipfile
 
+data_atual = datetime.now().strftime("%Y%m%d")
 
 def carregar_planilha(file, skiprows):
     try:
@@ -129,7 +130,6 @@ def main():
 
             if estoque_df is not None and enderecos_df is not None:
                 # Gerando nome das planilhas
-                data_atual = datetime.now().strftime("%Y%m%d")
                 nome_arquivo_estoque = f"Estoque_{item_selecionado}_{data_atual}.xlsx"
 
                 if "Contagem" not in estoque_df.columns:
@@ -223,6 +223,8 @@ def main():
             conferencia_df = conferencia_df[
                 ["Medicamento", "Lote", "Data Vencimento", "Valor Adotado"]
             ]
+            conferencia_df.loc[:, 'Valor Adotado'] = pd.to_numeric(conferencia_df["Valor Adotado"], errors='coerce')
+
             conferencia_df = (
                 conferencia_df.groupby(["Medicamento", "Lote", "Data Vencimento"])[
                     "Valor Adotado"
@@ -266,6 +268,7 @@ def main():
                 how="left",
                 on=["Lote", "Medicamento", "Data Vencimento"],
             )
+            df = df.sort_values(by="Medicamento")
 
             df = df.rename(
                 columns={
@@ -297,7 +300,7 @@ def main():
                 "Programa Saúde",
             ]
             df = df[new]
-
+            df = df.sort_values(by="Medicamento")
             # Estilizar o DataFrame
             wb = estilizar_dataframe(df, "Apuração")
             excel_bytes = to_excel_bytes(wb)
@@ -305,7 +308,7 @@ def main():
             # Exibir tabelas resultantes
             st.write("Resultado da Análise:")
             st.dataframe(df)
-            data_atual = datetime.now().strftime("%Y%m%d")
+
             # Botão de download
             st.download_button(
                 label="Baixar Planilha de Apuração",
