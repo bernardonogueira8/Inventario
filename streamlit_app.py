@@ -350,6 +350,7 @@ def main():
 
     elif opcao == "Gerar apuração SIMPAS":
         st.subheader("Gerar Apuração SIMPAS")
+        item_selecionado3 = st.text_input("Nome da Lista:")
         estoque_file3 = st.file_uploader(
             "Upload da planilha de Estoque Final:", type=["xlsx"]
         )
@@ -397,7 +398,7 @@ def main():
             st.download_button(
                 label="Baixar Planilha de Apuração SIMPAS",
                 data=excel_bytes,
-                file_name=f"Apuracao_SIMPAS_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                file_name=f"{item_selecionado3} Apuracao_SIMPAS {data_atual}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
 
