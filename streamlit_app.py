@@ -28,7 +28,6 @@ def carregar_todas_abas(file):
         st.error(f"Erro ao carregar o arquivo com múltiplas abas: {e}")
         return None
 
-
 def estilizar_dataframe(df, sheet_name):
     wb = Workbook()
     ws = wb.active
