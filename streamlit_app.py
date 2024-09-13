@@ -17,7 +17,6 @@ def carregar_planilha(file, skiprows):
         st.error(f"Erro ao carregar o arquivo: {e}")
         return None
 
-
 def carregar_todas_abas(file):
     try:
         xls = pd.ExcelFile(file)
@@ -63,13 +62,11 @@ def estilizar_dataframe(df, sheet_name):
 
     return wb
 
-
 def to_excel_bytes(wb):
     buffer = BytesIO()
     wb.save(buffer)
     buffer.seek(0)
     return buffer
-
 
 def criar_arquivo_zip(arquivos):
     buffer_zip = BytesIO()
@@ -78,7 +75,6 @@ def criar_arquivo_zip(arquivos):
             zipf.writestr(nome_arquivo, dados.getvalue())
     buffer_zip.seek(0)
     return buffer_zip
-
 
 def gerar_planilha_conferencia(df, nome):
     df_conferencia = df.copy()
@@ -101,7 +97,6 @@ def gerar_planilha_conferencia(df, nome):
         ]
     ]
     return estilizar_dataframe(df_conferencia, nome)
-
 
 def main():
     st.title("Sistema de Inventário")
