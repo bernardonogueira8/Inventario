@@ -236,6 +236,10 @@ def main():
             )
             conferencia_df["Lote"] = conferencia_df["Lote"].astype(str)
 
+            conferencia_df["Lote"] = conferencia_df["Lote"].apply(
+                lambda x: str(x).upper()
+            )
+
             estoque_df = carregar_planilha(estoque_file2, skiprows=7)
             estoque_df = estoque_df[
                 [
