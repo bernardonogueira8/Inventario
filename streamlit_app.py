@@ -239,6 +239,12 @@ def main():
             conferencia_df["Lote"] = conferencia_df["Lote"].apply(
                 lambda x: str(x).upper()
             )
+            conferencia_df["Data Vencimento"] = conferencia_df[
+                "Data Vencimento"
+            ].astype(str)
+            conferencia_df["Data Vencimento"] = pd.to_datetime(
+                conferencia_df["Data Vencimento"]
+            )
 
             estoque_df = carregar_planilha(estoque_file2, skiprows=7)
             estoque_df = estoque_df[
@@ -253,6 +259,9 @@ def main():
                 ]
             ]
             estoque_df["Lote"] = estoque_df["Lote"].astype(str)
+            estoque_df["Data Vencimento"] = pd.to_datetime(estoque_df[
+                "Data Vencimento"])
+
             estoque_df["Código Simpas"] = estoque_df["Código Simpas"].astype(str)
             estoque_df = (
                 estoque_df.groupby(
