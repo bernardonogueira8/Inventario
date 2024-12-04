@@ -1,5 +1,6 @@
 import pandas as pd
 import streamlit as st
+import string
 from io import BytesIO
 from datetime import datetime
 from openpyxl import Workbook
@@ -97,21 +98,118 @@ def gerar_planilha_conferencia(df, nome):
     ]
     return estilizar_dataframe(df_conferencia, nome)
 
+def gerar_enderecos(rua, num_colunas, num_andares):
+    enderecos = []
+    for coluna in range(1, num_colunas + 1):
+        for andar in range(1, num_andares + 1):
+            # Gerando combinações de endereços no formato K-01-PPxx-A e K-01-PPxx-B
+            endereco_a = f"{rua}-{str(coluna).zfill(2)}-PP{str(andar).zfill(2)}-A"
+            endereco_b = f"{rua}-{str(coluna).zfill(2)}-PP{str(andar).zfill(2)}-B"
+            enderecos.append([endereco_a, endereco_b])  # Lista com duas colunas para cada linha
+    return enderecos
+
+
+# Validação de colunas obrigatórias
+def validar_colunas(df, required_columns, nome):
+    if not required_columns.issubset(df.columns):
+        st.error(f"A planilha {nome} não possui as colunas necessárias: {required_columns}")
+        return False
+    return True
 def main():
     st.title("Sistema de Inventário")
 
     opcao = st.selectbox(
         "Escolha uma opção:",
-        ["Gerar lista de contagem", "Gerar apuração SIGAF", "Gerar apuração SIMPAS"],
+        [
+            "Gerar lista de Mapeamento",
+            "Gerar lista de Contagem",
+            "Gerar apuração SIGAF",
+            "Gerar apuração SIGAF V2",
+            "Gerar apuração SIMPAS",
+        ],
     )
 
-    if opcao == "Gerar lista de contagem":
+    if opcao == "Gerar lista de Mapeamento":
+        # Configura o título da aplicação
+        st.title("Gerador de Endereçamento")
+
+        # Inputs do usuário
+        letra_rua = st.text_input("Informe a letra da rua:").strip().upper()
+        quantidade_ruas = st.number_input("Informe a quantidade de ruas:", min_value=1, step=1)
+
+        if not letra_rua or len(letra_rua) != 1 or not letra_rua.isalpha():
+            st.error("Por favor, insira uma letra válida para a rua.")
+        else:
+            # Cria o DataFrame com endereços
+            dados = []
+            for prefixo_num in range(1, 5):  # Gera PP01 até PP04
+                prefixo = f"PP{prefixo_num:02d}"
+                for numero_rua in range(1, int(quantidade_ruas) + 1):
+                    for identificador in ["A", "B"]:
+                        endereco = f"{letra_rua}-{numero_rua:02d}-{prefixo}-{identificador}"
+                        dados.append([endereco, "", ""])
+
+            # Converte a lista de dados em um DataFrame
+            df = pd.DataFrame(dados, columns=["Endereços", "Medicamento", "Lote"])
+
+            # Cria a planilha com openpyxl
+            wb = Workbook()
+            ws = wb.active
+            ws.title = f"Rua {letra_rua}"
+
+            # Adiciona o DataFrame à planilha
+            for r_idx, row in enumerate(dataframe_to_rows(df, index=False, header=True), start=1):
+                ws.append(row)
+                if r_idx == 1:  # Centraliza os cabeçalhos
+                    for col in ws[r_idx]:
+                        col.alignment = Alignment(horizontal="center", vertical="center")
+
+            # Ajusta largura das colunas
+            for column in ws.columns:
+                max_length = 0
+                column_letter = column[0].column_letter  # Letra da coluna
+                for cell in column:
+                    try:
+                        if cell.value:
+                            max_length = max(max_length, len(str(cell.value)))
+                    except:
+                        pass
+                ws.column_dimensions[column_letter].width = max_length + 2
+
+            # Adiciona bordas às células
+            thin_border = Border(
+                left=Side(style="thin"),
+                right=Side(style="thin"),
+                top=Side(style="thin"),
+                bottom=Side(style="thin"),
+            )
+            for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
+                for cell in row:
+                    cell.border = thin_border
+
+            # Salva o arquivo em memória para download
+            arquivo = BytesIO()
+            wb.save(arquivo)
+            arquivo.seek(0)
+
+            # Botão para download
+            st.download_button(
+                label="Baixar Planilha",
+                data=arquivo,
+                file_name=f"RUA {letra_rua}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+
+    elif opcao == "Gerar lista de Contagem":
         st.subheader("Gerar Lista de Contagem")
 
         item_selecionado = st.text_input("Nome da Lista:")
 
+        letra_rua = st.text_input("Informe a letra da rua:").strip().upper()
+        quantidade_ruas = st.number_input("Informe a quantidade de ruas:", min_value=1, step=1)
+
         estoque_file1 = st.file_uploader(
-            "Upload da planilha de Estoque:", type=["xlsx"]
+            "Upload da planilha de Estoque:", type=["xls"]
         )
         enderecos_file = st.file_uploader(
             "Upload da planilha de Endereços:", type=["xlsx"]
@@ -121,6 +219,14 @@ def main():
             estoque_df = carregar_planilha(estoque_file1, skiprows=7)
             estoque = estoque_df
             enderecos_df = carregar_todas_abas(enderecos_file)
+
+            required_columns_estoque = {"Medicamento", "Lote", "Data Vencimento"}
+            required_columns_enderecos = {"Endereço", "Lote"}
+
+            if not required_columns_estoque.issubset(estoque_df.columns):
+                st.error("A planilha de Estoque não possui as colunas necessárias.")
+            if not required_columns_enderecos.issubset(enderecos_df.columns):
+                st.error("A planilha de Endereços não possui as colunas necessárias.")
 
             if estoque_df is not None and enderecos_df is not None:
                 # Gerando nome das planilhas
@@ -135,18 +241,10 @@ def main():
                 estoque_df["Lote"] = estoque_df["Lote"].astype(str)
                 estoque = estoque.drop(columns=["Contagem"])
 
-                enderecos_df = enderecos_df.rename(
-                    columns={
-                        "LOCALIZAÇÃO": "Endereço",
-                        "PROGRAMA": "Programa",
-                        "LOTE": "Lote",
-                    }
-                )
                 enderecos_df["Lote"] = enderecos_df["Lote"].astype(str).str.rstrip()
+
                 enderecos = enderecos_df
-                enderecos = enderecos[
-                    ["Endereço", "DESCRIÇÃO", "Programa", "Lote", "VALIDADE"]
-                ]
+
                 enderecos_df = enderecos_df[["Endereço", "Lote"]]
 
                 merged_df = pd.merge(estoque_df, enderecos_df, on="Lote", how="left")
@@ -164,6 +262,21 @@ def main():
 
                 merged_df = merged_df.dropna(how="all")
                 merged_df = merged_df.drop_duplicates()
+
+                if not letra_rua or len(letra_rua) != 1 or not letra_rua.isalpha():
+                    st.error("Por favor, insira uma letra válida para a rua.")
+                else:
+                    # Cria o DataFrame com endereços
+                    dados = []
+                    for prefixo_num in range(1, 5):  # Gera PP01 até PP04
+                        prefixo = f"PP{prefixo_num:02d}"
+                        for numero_rua in range(1, int(quantidade_ruas) + 1):
+                            for identificador in ["A", "B"]:
+                                endereco = f"{letra_rua}-{numero_rua:02d}-{prefixo}-{identificador}"
+                                dados.append([endereco])    
+                    df = pd.DataFrame(dados, columns=["Endereço"])
+
+                merged_df = pd.merge(merged_df, df, on="Endereço", how="outer").drop_duplicates().reset_index(drop=True)
 
                 nome_arquivo_1 = f"{item_selecionado}_contagem_{data_atual}.xlsx"
                 nome_arquivo_conferencia = (
@@ -225,7 +338,9 @@ def main():
             conferencia_df = conferencia_df[
                 ["Medicamento", "Lote", "Data Vencimento", "Valor Adotado"]
             ]
-            conferencia_df.loc[:, 'Valor Adotado'] = pd.to_numeric(conferencia_df["Valor Adotado"], errors='coerce')
+            conferencia_df.loc[:, "Valor Adotado"] = pd.to_numeric(
+                conferencia_df["Valor Adotado"], errors="coerce"
+            )
 
             conferencia_df = (
                 conferencia_df.groupby(["Medicamento", "Lote", "Data Vencimento"])[
@@ -259,8 +374,9 @@ def main():
                 ]
             ]
             estoque_df["Lote"] = estoque_df["Lote"].astype(str)
-            estoque_df["Data Vencimento"] = pd.to_datetime(estoque_df[
-                "Data Vencimento"])
+            estoque_df["Data Vencimento"] = pd.to_datetime(
+                estoque_df["Data Vencimento"]
+            )
 
             estoque_df["Código Simpas"] = estoque_df["Código Simpas"].astype(str)
             estoque_df = (
@@ -321,9 +437,9 @@ def main():
             wb = estilizar_dataframe(df, "Apuração")
             ws = wb.active
             # Começando da linha 2, assumindo que a primeira linha é o cabeçalho
-            for row in range(2, len(df) + 2):  
+            for row in range(2, len(df) + 2):
                 # Fórmula para cada linha
-                ws[f'G{row}'] = f'=E{row}-F{row}'
+                ws[f"G{row}"] = f"=E{row}-F{row}"
                 ws[f"I{row}"] = f"=E{row}*H{row}"
                 ws[f"J{row}"] = f"=G{row}*H{row}"
 
@@ -355,6 +471,162 @@ def main():
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
 
+    elif opcao == "Gerar apuração SIGAF V2":
+        st.subheader("Gerar Apuração SIGAF V2")
+        item_selecionado2 = st.text_input("Nome da Lista:")
+
+        conferencia_file = st.file_uploader(
+            "Upload da planilha de Conferencia:", type=["xlsx"]
+        )
+        estoque_file2 = st.file_uploader(
+            "Upload da planilha de Estoque (Nova):", type=["xlsx"]
+        )
+
+        if estoque_file2 and conferencia_file:
+            conferencia_df = carregar_planilha(conferencia_file, skiprows=0)
+            conferencia_df = conferencia_df[
+                ["Medicamento", "Lote", "Data Vencimento", "Valor Adotado"]
+            ]
+            conferencia_df["Valor Adotado"] = pd.to_numeric(
+                conferencia_df["Valor Adotado"], errors="coerce"
+            )
+
+            # Normalizar dados
+            conferencia_df["Lote"] = conferencia_df["Lote"].str.upper()
+            conferencia_df["Data Vencimento"] = pd.to_datetime(
+                conferencia_df["Data Vencimento"], errors="coerce", dayfirst=True
+            )
+
+            # Remover valores inválidos
+            conferencia_df = conferencia_df.dropna(subset=["Data Vencimento"])
+
+            # Agrupar por Medicamento, Lote e Data de Vencimento
+            conferencia_df = (
+                conferencia_df.groupby(["Medicamento", "Lote", "Data Vencimento"])[
+                    "Valor Adotado"
+                ]
+                .sum()
+                .reset_index()
+            )
+
+            estoque_df = carregar_planilha(estoque_file2, skiprows=7)
+            estoque_df = estoque_df[
+                [
+                    "Código Simpas",
+                    "Medicamento",
+                    "Lote",
+                    "Data Vencimento",
+                    "Quantidade Encontrada",
+                    "Valor Unitário",
+                    "Programa Saúde",
+                ]
+            ]
+            # Normalizar dados de estoque
+            estoque_df["Lote"] = estoque_df["Lote"].str.upper()
+            estoque_df["Data Vencimento"] = pd.to_datetime(
+                estoque_df["Data Vencimento"], errors="coerce", dayfirst=True
+            )
+            estoque_df["Valor Unitário"] = pd.to_numeric(
+                estoque_df["Valor Unitário"], errors="coerce"
+            )
+            estoque_df["Código Simpas"] = estoque_df["Código Simpas"].astype(str)
+
+            # Remover valores inválidos
+            estoque_df = estoque_df.dropna(subset=["Data Vencimento"])
+
+            # Agrupar dados de estoque
+            estoque_df = (
+                estoque_df.groupby(
+                    [
+                        "Código Simpas",
+                        "Medicamento",
+                        "Lote",
+                        "Data Vencimento",
+                        "Valor Unitário",
+                        "Programa Saúde",
+                    ]
+                )["Quantidade Encontrada"]
+                .sum()
+                .reset_index()
+            )
+
+            # Mesclar DataFrames
+            df = pd.merge(
+                conferencia_df,
+                estoque_df,
+                how="outer",
+                on=["Lote", "Medicamento", "Data Vencimento"],
+            )
+            df = df.rename(
+                columns={
+                    "Data Vencimento": "Validade",
+                    "Quantidade Encontrada": "SIGAF",
+                    "Valor Adotado": "Contagem",
+                }
+            )
+
+            # Conversões para numéricos e cálculos
+            df["Contagem"] = pd.to_numeric(df["Contagem"], errors="coerce")
+            df["SIGAF"] = pd.to_numeric(df["SIGAF"], errors="coerce")
+            df["Valor Unitário"] = pd.to_numeric(df["Valor Unitário"], errors="coerce")
+
+            df["Diferença"] = df["Contagem"].sub(df["SIGAF"], fill_value=0)
+            df["Vlr Total"] = df["Contagem"].mul(df["Valor Unitário"], fill_value=0)
+            df["Vlr Divergencia"] = df["Diferença"].mul(
+                df["Valor Unitário"], fill_value=0
+            )
+
+            # Ordenar e selecionar colunas
+            new = [
+                "Código Simpas",
+                "Medicamento",
+                "Lote",
+                "Validade",
+                "Contagem",
+                "SIGAF",
+                "Diferença",
+                "Valor Unitário",
+                "Vlr Total",
+                "Vlr Divergencia",
+                "Programa Saúde",
+            ]
+            df = df[new]
+            df = df.sort_values(by="Medicamento")
+
+            # Estilizar o DataFrame para Excel
+            wb = estilizar_dataframe(df, "Apuração")
+            ws = wb.active
+
+            # Adicionar fórmulas no Excel
+            for row in range(2, len(df) + 2):
+                ws[f"G{row}"] = f"=E{row}-F{row}"
+                ws[f"I{row}"] = f"=E{row}*H{row}"
+                ws[f"J{row}"] = f"=G{row}*H{row}"
+
+            ultima_linha = len(df) + 2
+            ws[f"I{ultima_linha}"] = f"=SUM(I2:I{ultima_linha-1})"
+            ws[f"J{ultima_linha}"] = f"=SUM(J2:J{ultima_linha-1})"
+            ws[f"J{ultima_linha+1}"] = f"=J{ultima_linha}/I{ultima_linha}"
+
+            # Configurar cabeçalho do Excel
+            ws.oddHeader.center.text = f"CONTAGEM x SIGAF - Relatório: {item_selecionado2}\n{pd.Timestamp.now().strftime('%d/%m/%Y')}"
+            ws.oddHeader.center.size = 12
+            ws.oddHeader.center.font = "Arial,Bold"
+
+            # Converter para bytes e preparar para download
+            excel_bytes = to_excel_bytes(wb)
+
+            # Exibir resultado e download
+            st.write("Resultado da Análise:")
+            st.dataframe(df)
+
+            st.download_button(
+                label="Baixar Planilha de Apuração",
+                data=excel_bytes,
+                file_name=f"{item_selecionado2}_Apuracao {data_atual}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+    
     elif opcao == "Gerar apuração SIMPAS":
         st.subheader("Gerar Apuração SIMPAS")
         item_selecionado3 = st.text_input("Nome da Lista:")
