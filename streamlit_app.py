@@ -123,6 +123,7 @@ def main():
         [
             "Gerar lista de Mapeamento",
             "Gerar lista de Contagem",
+            "Gerar lista de Contagem V2",
             "Gerar apuração SIGAF",
             "Gerar apuração SIGAF V2",
             "Gerar apuração SIMPAS",
@@ -201,6 +202,110 @@ def main():
             )
 
     elif opcao == "Gerar lista de Contagem":
+        st.subheader("Gerar Lista de Contagem")
+
+        item_selecionado = st.text_input("Nome da Lista:")
+
+        estoque_file1 = st.file_uploader(
+            "Upload da planilha de Estoque:", type=["xlsx"]
+        )
+        enderecos_file = st.file_uploader(
+            "Upload da planilha de Endereços:", type=["xlsx"]
+        )
+
+        if estoque_file1 and enderecos_file:
+            estoque_df = carregar_planilha(estoque_file1, skiprows=7)
+            estoque = estoque_df
+            enderecos_df = carregar_todas_abas(enderecos_file)
+
+            if estoque_df is not None and enderecos_df is not None:
+                # Gerando nome das planilhas
+                nome_arquivo_estoque = f"Estoque_{item_selecionado}_{data_atual}.xlsx"
+
+                if "Contagem" not in estoque_df.columns:
+                    estoque_df["Contagem"] = None
+
+                estoque_df = estoque_df[
+                    ["Medicamento", "Lote", "Data Vencimento", "Contagem"]
+                ]
+                estoque_df["Lote"] = estoque_df["Lote"].astype(str)
+                estoque = estoque.drop(columns=["Contagem"])
+
+                enderecos_df = enderecos_df.rename(
+                    columns={
+                        "LOCALIZAÇÃO": "Endereço",
+                        "PROGRAMA": "Programa",
+                        "LOTE": "Lote",
+                    }
+                )
+                enderecos_df["Lote"] = enderecos_df["Lote"].astype(str).str.rstrip()
+                enderecos = enderecos_df
+                enderecos = enderecos[
+                    ["Endereço", "DESCRIÇÃO", "Programa", "Lote", "VALIDADE"]
+                ]
+                enderecos_df = enderecos_df[["Endereço", "Lote"]]
+
+                merged_df = pd.merge(estoque_df, enderecos_df, on="Lote", how="left")
+                merged_df["Programa"] = item_selecionado
+                colunas_reordenadas = [
+                    "Endereço",
+                    "Medicamento",
+                    "Lote",
+                    "Data Vencimento",
+                    "Programa",
+                    "Contagem",
+                ]
+                merged_df = merged_df[colunas_reordenadas].sort_values(by="Medicamento")
+                merged_df = merged_df[colunas_reordenadas].sort_values(by="Endereço")
+
+                merged_df = merged_df.dropna(how="all")
+                merged_df = merged_df.drop_duplicates()
+
+                nome_arquivo_1 = f"{item_selecionado}_contagem_{data_atual}.xlsx"
+                nome_arquivo_conferencia = (
+                    f"{item_selecionado}_{data_atual}_conferencia.xlsx"
+                )
+                nome_arquivo_enderecaemento = (
+                    f"{item_selecionado}_{data_atual}_endereco.xlsx"
+                )
+
+                wb1 = estilizar_dataframe(merged_df, "Contagem")
+                wb_conferencia = gerar_planilha_conferencia(merged_df, "Conferência")
+                wb_endereco = estilizar_dataframe(enderecos, "Endereço")
+                wb_estoque = estilizar_dataframe(estoque, "Estoque")
+                ws = wb1.active
+                ws.oddHeader.center.text = (
+                    f"INVENTÁRIO ROTATIVO 2024\n{item_selecionado}"
+                )
+                ws.oddHeader.right.text = "CONTAGEM:____"
+
+                ws.oddFooter.center.text = "Página &P de &N"
+                ws.oddFooter.right.text = "ASS:_______________________________\nASS:_______________________________"
+
+                excel_bytes_estoque = to_excel_bytes(wb_estoque)
+                excel_bytes = to_excel_bytes(wb1)
+                excel_bytes_conferencia = to_excel_bytes(wb_conferencia)
+                excel_bytes_enderecaemento = to_excel_bytes(wb_endereco)
+
+                arquivos = [
+                    (nome_arquivo_estoque, excel_bytes_estoque),
+                    (nome_arquivo_1, excel_bytes),
+                    (nome_arquivo_conferencia, excel_bytes_conferencia),
+                    (nome_arquivo_enderecaemento, excel_bytes_enderecaemento),
+                ]
+                arquivo_zip_bytes = criar_arquivo_zip(arquivos)
+
+                st.write("Resultado da Análise:")
+                st.dataframe(merged_df)
+
+                st.download_button(
+                    label="Baixar Todos os Arquivos",
+                    data=arquivo_zip_bytes,
+                    file_name=f"{item_selecionado}_{data_atual}_arquivos.zip",
+                    mime="application/zip",
+                )
+
+    elif opcao == "Gerar lista de Contagem V2":
         st.subheader("Gerar Lista de Contagem")
 
         item_selecionado = st.text_input("Nome da Lista:")
