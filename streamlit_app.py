@@ -6,6 +6,8 @@ from datetime import datetime
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side
 from openpyxl.utils.dataframe import dataframe_to_rows
+from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.page import PageMargins
 import zipfile
 
 data_atual = datetime.now().strftime("%Y%m%d")
@@ -108,6 +110,60 @@ def gerar_enderecos(rua, num_colunas, num_andares):
             enderecos.append([endereco_a, endereco_b])  # Lista com duas colunas para cada linha
     return enderecos
 
+def estilizar_dataframe_v2(df, titulo):
+    from openpyxl import Workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = titulo
+
+    # Adicionar os cabeçalhos na primeira linha
+    thin_border = Border(
+        left=Side(style="thin"), right=Side(style="thin"),
+        top=Side(style="thin"), bottom=Side(style="thin")
+    )
+    for col_idx, column_name in enumerate(df.columns, start=1):
+        cell = ws.cell(row=1, column=col_idx, value=column_name)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = thin_border
+
+    # Preencher os dados do DataFrame
+    for row_idx, row in enumerate(df.itertuples(index=False), start=2):
+        for col_idx, value in enumerate(row, start=1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+
+            # Alinhar Medicamento à esquerda, outras colunas ao centro
+            if df.columns[col_idx - 1] == "Medicamento":
+                cell.alignment = Alignment(horizontal="left", vertical="center")
+            else:
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+
+            cell.border = thin_border
+
+    # Configurar largura das colunas
+    col_widths = {
+        "Endereço": 90,
+        "Medicamento": 430,  # Reduzida
+        "Lote": 125,
+        "Data Vencimento": 100,
+        "Programa": 125,
+        "Contagem": 125,
+    }
+
+    for col_idx, column_name in enumerate(df.columns, start=1):
+        column_letter = get_column_letter(col_idx)
+        if column_name in col_widths:
+            ws.column_dimensions[column_letter].width = col_widths[column_name] / 7  # Ajustar largura proporcional
+
+    # Configurar impressão em paisagem e margens estreitas
+    ws.page_setup.orientation = "landscape"
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0
+    ws.page_margins = PageMargins(left=0.25, right=0.25, top=0.25, bottom=0.25)
+
+    return wb
+
+
 
 # Validação de colunas obrigatórias
 def validar_colunas(df, required_columns, nome):
@@ -123,7 +179,7 @@ def main():
         [
             "Gerar lista de Mapeamento",
             "Gerar lista de Contagem",
-            "Gerar lista de Contagem V2",
+            # "Gerar lista de Contagem V2",
             "Gerar apuração SIGAF",
             "Gerar apuração SIGAF V2",
             "Gerar apuração SIMPAS",
@@ -274,7 +330,7 @@ def main():
                     f"{item_selecionado}_{data_atual}_endereco.xlsx"
                 )
 
-                wb1 = estilizar_dataframe(merged_df, "Contagem")
+                wb1 = estilizar_dataframe_v2(merged_df, "Contagem")
                 wb_conferencia = gerar_planilha_conferencia(merged_df, "Conferência")
                 wb_endereco = estilizar_dataframe(enderecos_df, "Endereço")
                 wb_estoque = estilizar_dataframe(estoque, "Estoque")
