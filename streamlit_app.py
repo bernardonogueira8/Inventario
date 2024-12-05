@@ -231,22 +231,28 @@ def main():
                 estoque_df["Lote"] = estoque_df["Lote"].astype(str)
                 estoque = estoque.drop(columns=["Contagem"])
 
-                enderecos_df = enderecos_df.rename(
-                    columns={
-                        "LOCALIZAÇÃO": "Endereço",
-                        "PROGRAMA": "Programa",
-                        "LOTE": "Lote",
-                    }
-                )
-                enderecos_df["Lote"] = enderecos_df["Lote"].astype(str).str.rstrip()
-                enderecos = enderecos_df
-                enderecos = enderecos[
-                    ["Endereço", "DESCRIÇÃO", "Programa", "Lote", "VALIDADE"]
-                ]
+                enderecos_df = enderecos_df.rename(columns={'Endereços': 'Endereço'})
                 enderecos_df = enderecos_df[["Endereço", "Lote"]]
+                enderecos_df["Lote"] = enderecos_df["Lote"].astype(str).str.rstrip()
 
-                merged_df = pd.merge(estoque_df, enderecos_df, on="Lote", how="left")
+               # Realizar o merge inicial para incluir endereços com correspondências
+                merged_df = pd.merge(enderecos_df, estoque_df, on="Lote", how="left")
                 merged_df["Programa"] = item_selecionado
+
+                # Identificar os lotes de estoque que não estão no endereços
+                estoque_restante = estoque_df[~estoque_df["Lote"].isin(merged_df["Lote"])]
+
+                # Adicionar os itens restantes ao DataFrame final, com coluna "Endereço" vazia
+                estoque_restante["Endereço"] = None
+                estoque_restante["Programa"] = item_selecionado
+
+                # Reordenar as colunas do estoque_restante para compatibilidade com merged_df
+                estoque_restante = estoque_restante[merged_df.columns]
+
+                # Concatenar os dados finais
+                merged_df = pd.concat([merged_df, estoque_restante], ignore_index=True)
+
+                # Reordenar o DataFrame
                 colunas_reordenadas = [
                     "Endereço",
                     "Medicamento",
@@ -255,11 +261,10 @@ def main():
                     "Programa",
                     "Contagem",
                 ]
-                merged_df = merged_df[colunas_reordenadas].sort_values(by="Medicamento")
-                merged_df = merged_df[colunas_reordenadas].sort_values(by="Endereço")
-
-                merged_df = merged_df.dropna(how="all")
+                merged_df = merged_df[colunas_reordenadas]
                 merged_df = merged_df.drop_duplicates()
+                merged_df.Lote.replace('nan', None, inplace=True)
+
 
                 nome_arquivo_1 = f"{item_selecionado}_contagem_{data_atual}.xlsx"
                 nome_arquivo_conferencia = (
@@ -271,7 +276,7 @@ def main():
 
                 wb1 = estilizar_dataframe(merged_df, "Contagem")
                 wb_conferencia = gerar_planilha_conferencia(merged_df, "Conferência")
-                wb_endereco = estilizar_dataframe(enderecos, "Endereço")
+                wb_endereco = estilizar_dataframe(enderecos_df, "Endereço")
                 wb_estoque = estilizar_dataframe(estoque, "Estoque")
                 ws = wb1.active
                 ws.oddHeader.center.text = (
