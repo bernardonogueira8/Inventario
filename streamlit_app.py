@@ -263,7 +263,7 @@ def main():
         item_selecionado = st.text_input("Nome da Lista:")
 
         estoque_file1 = st.file_uploader(
-            "Upload da planilha de Estoque:", type=["xlsx"]
+            "Upload da planilha de Estoque:", type=["xlx"]
         )
         enderecos_file = st.file_uploader(
             "Upload da planilha de Endereços:", type=["xlsx"]
