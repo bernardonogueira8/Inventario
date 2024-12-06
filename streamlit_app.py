@@ -178,8 +178,8 @@ def main():
         "Escolha uma opção:",
         [
             "Gerar lista de Mapeamento",
-            "Gerar lista de Contagem",
-            # "Gerar lista de Contagem V2",
+            "Gerar lista de Contagem (Com Mapeamento)",
+            "Gerar lista de Contagem (Planilha EGBA)",
             "Gerar apuração SIGAF",
             "Gerar apuração SIGAF V2",
             "Gerar apuração SIMPAS",
@@ -257,7 +257,7 @@ def main():
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
-    elif opcao == "Gerar lista de Contagem":
+    elif opcao == "Gerar lista de Contagem (Com Mapeamento)":
         st.subheader("Gerar Lista de Contagem")
 
         item_selecionado = st.text_input("Nome da Lista:")
@@ -366,16 +366,13 @@ def main():
                     mime="application/zip",
                 )
 
-    elif opcao == "Gerar lista de Contagem V2":
+    elif opcao == "Gerar lista de Contagem (Planilha EGBA)":
         st.subheader("Gerar Lista de Contagem")
 
         item_selecionado = st.text_input("Nome da Lista:")
 
-        letra_rua = st.text_input("Informe a letra da rua:").strip().upper()
-        quantidade_ruas = st.number_input("Informe a quantidade de ruas:", min_value=1, step=1)
-
         estoque_file1 = st.file_uploader(
-            "Upload da planilha de Estoque:", type=["xls"]
+            "Upload da planilha de Estoque:", type=["xlsx"]
         )
         enderecos_file = st.file_uploader(
             "Upload da planilha de Endereços:", type=["xlsx"]
@@ -385,14 +382,6 @@ def main():
             estoque_df = carregar_planilha(estoque_file1, skiprows=7)
             estoque = estoque_df
             enderecos_df = carregar_todas_abas(enderecos_file)
-
-            required_columns_estoque = {"Medicamento", "Lote", "Data Vencimento"}
-            required_columns_enderecos = {"Endereço", "Lote"}
-
-            if not required_columns_estoque.issubset(estoque_df.columns):
-                st.error("A planilha de Estoque não possui as colunas necessárias.")
-            if not required_columns_enderecos.issubset(enderecos_df.columns):
-                st.error("A planilha de Endereços não possui as colunas necessárias.")
 
             if estoque_df is not None and enderecos_df is not None:
                 # Gerando nome das planilhas
@@ -407,10 +396,18 @@ def main():
                 estoque_df["Lote"] = estoque_df["Lote"].astype(str)
                 estoque = estoque.drop(columns=["Contagem"])
 
+                enderecos_df = enderecos_df.rename(
+                    columns={
+                        "LOCALIZAÇÃO": "Endereço",
+                        "PROGRAMA": "Programa",
+                        "LOTE": "Lote",
+                    }
+                )
                 enderecos_df["Lote"] = enderecos_df["Lote"].astype(str).str.rstrip()
-
                 enderecos = enderecos_df
-
+                enderecos = enderecos[
+                    ["Endereço", "DESCRIÇÃO", "Programa", "Lote", "VALIDADE"]
+                ]
                 enderecos_df = enderecos_df[["Endereço", "Lote"]]
 
                 merged_df = pd.merge(estoque_df, enderecos_df, on="Lote", how="left")
@@ -428,21 +425,6 @@ def main():
 
                 merged_df = merged_df.dropna(how="all")
                 merged_df = merged_df.drop_duplicates()
-
-                if not letra_rua or len(letra_rua) != 1 or not letra_rua.isalpha():
-                    st.error("Por favor, insira uma letra válida para a rua.")
-                else:
-                    # Cria o DataFrame com endereços
-                    dados = []
-                    for prefixo_num in range(1, 5):  # Gera PP01 até PP04
-                        prefixo = f"PP{prefixo_num:02d}"
-                        for numero_rua in range(1, int(quantidade_ruas) + 1):
-                            for identificador in ["A", "B"]:
-                                endereco = f"{letra_rua}-{numero_rua:02d}-{prefixo}-{identificador}"
-                                dados.append([endereco])    
-                    df = pd.DataFrame(dados, columns=["Endereço"])
-
-                merged_df = pd.merge(merged_df, df, on="Endereço", how="outer").drop_duplicates().reset_index(drop=True)
 
                 nome_arquivo_1 = f"{item_selecionado}_contagem_{data_atual}.xlsx"
                 nome_arquivo_conferencia = (
