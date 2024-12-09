@@ -633,14 +633,14 @@ def main():
         )
 
         if estoque_file2 and conferencia_file:
-            conferencia_df = carregar_planilha(conferencia_file, skiprows=0)
+            conferencia_df = pd.read_excel(conferencia_file, skiprows=0, dtype={"Lote": str})
+            
             conferencia_df = conferencia_df[
                 ["Medicamento", "Lote", "Valor Adotado"]
             ]
             conferencia_df["Valor Adotado"] = pd.to_numeric(
                 conferencia_df["Valor Adotado"], errors="coerce"
             )
-
             # Normalizar dados
             conferencia_df["Lote"] = conferencia_df["Lote"].str.upper()
 
@@ -651,7 +651,7 @@ def main():
                 .reset_index()
             )
 
-            estoque_df = carregar_planilha(estoque_file2, skiprows=7)
+            estoque_df = pd.read_excel(estoque_file2, skiprows=7, dtype={"Lote": str})
             estoque_df = estoque_df[
                 [
                     "Código Simpas",
@@ -662,8 +662,10 @@ def main():
                     "Programa Saúde",
                 ]
             ]
+            
             # Normalizar dados de estoque
             estoque_df["Lote"] = estoque_df["Lote"].str.upper()
+
             estoque_df["Valor Unitário"] = pd.to_numeric(
                 estoque_df["Valor Unitário"], errors="coerce"
             )
