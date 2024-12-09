@@ -478,7 +478,7 @@ def main():
             "Upload da planilha de Conferencia:", type=["xlsx"]
         )
         estoque_file2 = st.file_uploader(
-            "Upload da planilha de Estoque(Nova):", type=["xlsx"]
+            "Upload da planilha de Estoque(Nova):", type=["xls"]
         )
 
         if estoque_file2 and conferencia_file:
@@ -621,19 +621,21 @@ def main():
 
     elif opcao == "Gerar apuração SIGAF V2":
         st.subheader("Gerar Apuração SIGAF V2")
+        st.write("Esse Cruzamento desconsidera a data de Validade.")
+
         item_selecionado2 = st.text_input("Nome da Lista:")
 
         conferencia_file = st.file_uploader(
             "Upload da planilha de Conferencia:", type=["xlsx"]
         )
         estoque_file2 = st.file_uploader(
-            "Upload da planilha de Estoque (Nova):", type=["xlsx"]
+            "Upload da planilha de Estoque (Nova):", type=["xls"]
         )
 
         if estoque_file2 and conferencia_file:
             conferencia_df = carregar_planilha(conferencia_file, skiprows=0)
             conferencia_df = conferencia_df[
-                ["Medicamento", "Lote", "Data Vencimento", "Valor Adotado"]
+                ["Medicamento", "Lote", "Valor Adotado"]
             ]
             conferencia_df["Valor Adotado"] = pd.to_numeric(
                 conferencia_df["Valor Adotado"], errors="coerce"
@@ -641,18 +643,10 @@ def main():
 
             # Normalizar dados
             conferencia_df["Lote"] = conferencia_df["Lote"].str.upper()
-            conferencia_df["Data Vencimento"] = pd.to_datetime(
-                conferencia_df["Data Vencimento"], errors="coerce", dayfirst=True
-            )
 
-            # Remover valores inválidos
-            conferencia_df = conferencia_df.dropna(subset=["Data Vencimento"])
-
-            # Agrupar por Medicamento, Lote e Data de Vencimento
+            # Agrupar por Medicamento e Lote
             conferencia_df = (
-                conferencia_df.groupby(["Medicamento", "Lote", "Data Vencimento"])[
-                    "Valor Adotado"
-                ]
+                conferencia_df.groupby(["Medicamento", "Lote"])["Valor Adotado"]
                 .sum()
                 .reset_index()
             )
@@ -663,7 +657,6 @@ def main():
                     "Código Simpas",
                     "Medicamento",
                     "Lote",
-                    "Data Vencimento",
                     "Quantidade Encontrada",
                     "Valor Unitário",
                     "Programa Saúde",
@@ -671,28 +664,15 @@ def main():
             ]
             # Normalizar dados de estoque
             estoque_df["Lote"] = estoque_df["Lote"].str.upper()
-            estoque_df["Data Vencimento"] = pd.to_datetime(
-                estoque_df["Data Vencimento"], errors="coerce", dayfirst=True
-            )
             estoque_df["Valor Unitário"] = pd.to_numeric(
                 estoque_df["Valor Unitário"], errors="coerce"
             )
             estoque_df["Código Simpas"] = estoque_df["Código Simpas"].astype(str)
 
-            # Remover valores inválidos
-            estoque_df = estoque_df.dropna(subset=["Data Vencimento"])
-
             # Agrupar dados de estoque
             estoque_df = (
                 estoque_df.groupby(
-                    [
-                        "Código Simpas",
-                        "Medicamento",
-                        "Lote",
-                        "Data Vencimento",
-                        "Valor Unitário",
-                        "Programa Saúde",
-                    ]
+                    ["Código Simpas", "Medicamento", "Lote", "Valor Unitário", "Programa Saúde"]
                 )["Quantidade Encontrada"]
                 .sum()
                 .reset_index()
@@ -703,11 +683,10 @@ def main():
                 conferencia_df,
                 estoque_df,
                 how="outer",
-                on=["Lote", "Medicamento", "Data Vencimento"],
+                on=["Lote", "Medicamento"],
             )
             df = df.rename(
                 columns={
-                    "Data Vencimento": "Validade",
                     "Quantidade Encontrada": "SIGAF",
                     "Valor Adotado": "Contagem",
                 }
@@ -720,16 +699,13 @@ def main():
 
             df["Diferença"] = df["Contagem"].sub(df["SIGAF"], fill_value=0)
             df["Vlr Total"] = df["Contagem"].mul(df["Valor Unitário"], fill_value=0)
-            df["Vlr Divergencia"] = df["Diferença"].mul(
-                df["Valor Unitário"], fill_value=0
-            )
+            df["Vlr Divergencia"] = df["Diferença"].mul(df["Valor Unitário"], fill_value=0)
 
             # Ordenar e selecionar colunas
             new = [
                 "Código Simpas",
                 "Medicamento",
                 "Lote",
-                "Validade",
                 "Contagem",
                 "SIGAF",
                 "Diferença",
@@ -747,14 +723,14 @@ def main():
 
             # Adicionar fórmulas no Excel
             for row in range(2, len(df) + 2):
-                ws[f"G{row}"] = f"=E{row}-F{row}"
-                ws[f"I{row}"] = f"=E{row}*H{row}"
-                ws[f"J{row}"] = f"=G{row}*H{row}"
+                ws[f"F{row}"] = f"=D{row}-E{row}"
+                ws[f"H{row}"] = f"=D{row}*G{row}"
+                ws[f"I{row}"] = f"=F{row}*G{row}"
 
             ultima_linha = len(df) + 2
+            ws[f"H{ultima_linha}"] = f"=SUM(H2:H{ultima_linha-1})"
             ws[f"I{ultima_linha}"] = f"=SUM(I2:I{ultima_linha-1})"
-            ws[f"J{ultima_linha}"] = f"=SUM(J2:J{ultima_linha-1})"
-            ws[f"J{ultima_linha+1}"] = f"=J{ultima_linha}/I{ultima_linha}"
+            ws[f"I{ultima_linha+1}"] = f"=I{ultima_linha}/H{ultima_linha}"
 
             # Configurar cabeçalho do Excel
             ws.oddHeader.center.text = f"CONTAGEM x SIGAF - Relatório: {item_selecionado2}\n{pd.Timestamp.now().strftime('%d/%m/%Y')}"
@@ -774,6 +750,7 @@ def main():
                 file_name=f"{item_selecionado2}_Apuracao {data_atual}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
+
     
     elif opcao == "Gerar apuração SIMPAS":
         st.subheader("Gerar Apuração SIMPAS")
