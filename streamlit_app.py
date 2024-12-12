@@ -633,16 +633,15 @@ def main():
         )
 
         if estoque_file2 and conferencia_file:
+            # Carregar planilha de conferência
             conferencia_df = pd.read_excel(conferencia_file, skiprows=0, dtype={"Lote": str})
             
-            conferencia_df = conferencia_df[
-                ["Medicamento", "Lote", "Valor Adotado"]
-            ]
+            # Selecionar e normalizar dados
+            conferencia_df = conferencia_df[["Medicamento", "Lote", "Valor Adotado"]]
+            conferencia_df["Lote"] = conferencia_df["Lote"].str.strip().str.upper()
             conferencia_df["Valor Adotado"] = pd.to_numeric(
                 conferencia_df["Valor Adotado"], errors="coerce"
             )
-            # Normalizar dados
-            conferencia_df["Lote"] = conferencia_df["Lote"].str.upper()
 
             # Agrupar por Medicamento e Lote
             conferencia_df = (
@@ -651,6 +650,7 @@ def main():
                 .reset_index()
             )
 
+            # Carregar planilha de estoque
             estoque_df = pd.read_excel(estoque_file2, skiprows=7, dtype={"Lote": str})
             estoque_df = estoque_df[
                 [
@@ -662,10 +662,9 @@ def main():
                     "Programa Saúde",
                 ]
             ]
-            
-            # Normalizar dados de estoque
-            estoque_df["Lote"] = estoque_df["Lote"].str.upper()
 
+            # Normalizar dados de estoque
+            estoque_df["Lote"] = estoque_df["Lote"].str.strip().str.upper()
             estoque_df["Valor Unitário"] = pd.to_numeric(
                 estoque_df["Valor Unitário"], errors="coerce"
             )
@@ -699,9 +698,16 @@ def main():
             df["SIGAF"] = pd.to_numeric(df["SIGAF"], errors="coerce")
             df["Valor Unitário"] = pd.to_numeric(df["Valor Unitário"], errors="coerce")
 
+            # Cálculos adicionais
             df["Diferença"] = df["Contagem"].sub(df["SIGAF"], fill_value=0)
             df["Vlr Total"] = df["Contagem"].mul(df["Valor Unitário"], fill_value=0)
             df["Vlr Divergencia"] = df["Diferença"].mul(df["Valor Unitário"], fill_value=0)
+
+            # Validar registros após o processamento
+            st.write("Quantidade de registros antes e depois das operações:")
+            st.write("Registros na conferência:", len(conferencia_df))
+            st.write("Registros no estoque:", len(estoque_df))
+            st.write("Registros após mesclagem:", len(df))
 
             # Ordenar e selecionar colunas
             new = [
@@ -753,7 +759,6 @@ def main():
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
 
-    
     elif opcao == "Gerar apuração SIMPAS":
         st.subheader("Gerar Apuração SIMPAS")
         item_selecionado3 = st.text_input("Nome da Lista:")
