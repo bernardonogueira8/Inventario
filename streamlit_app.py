@@ -517,105 +517,99 @@ def main():
 
     elif opcao == "Gerar apuração SIGAF":
         st.subheader("Gerar Apuração SIGAF")
+        st.write("Esse Cruzamento desconsidera a data de Validade.")
+
         item_selecionado2 = st.text_input("Nome da Lista:")
 
         conferencia_file = st.file_uploader(
             "Upload da planilha de Conferencia:", type=["xlsx"]
         )
         estoque_file2 = st.file_uploader(
-            "Upload da planilha de Estoque(Nova):", type=["xls"]
+            "Upload da planilha de Estoque (Nova):", type=["xls"]
         )
 
         if estoque_file2 and conferencia_file:
-            conferencia_df = carregar_planilha(conferencia_file, skiprows=0)
-            conferencia_df = conferencia_df[
-                ["Medicamento", "Lote", "Data Vencimento", "Valor Adotado"]
-            ]
-            conferencia_df.loc[:, "Valor Adotado"] = pd.to_numeric(
+            # Carregar planilha de conferência
+            conferencia_df = pd.read_excel(conferencia_file, skiprows=0, dtype={"Lote": str})
+            
+            # Selecionar e normalizar dados
+            conferencia_df = conferencia_df[["Medicamento", "Lote", "Valor Adotado"]]
+            conferencia_df["Lote"] = conferencia_df["Lote"].str.strip().str.upper()
+            conferencia_df["Valor Adotado"] = pd.to_numeric(
                 conferencia_df["Valor Adotado"], errors="coerce"
             )
 
+            # Agrupar por Medicamento e Lote
             conferencia_df = (
-                conferencia_df.groupby(["Medicamento", "Lote", "Data Vencimento"])[
-                    "Valor Adotado"
-                ]
+                conferencia_df.groupby(["Medicamento", "Lote"])["Valor Adotado"]
                 .sum()
                 .reset_index()
             )
-            conferencia_df["Lote"] = conferencia_df["Lote"].astype(str)
 
-            conferencia_df["Lote"] = conferencia_df["Lote"].apply(
-                lambda x: str(x).upper()
-            )
-            conferencia_df["Data Vencimento"] = conferencia_df[
-                "Data Vencimento"
-            ].astype(str)
-            conferencia_df["Data Vencimento"] = pd.to_datetime(
-                conferencia_df["Data Vencimento"]
-            )
-
-            estoque_df = carregar_planilha(estoque_file2, skiprows=7)
+            # Carregar planilha de estoque
+            estoque_df = pd.read_excel(estoque_file2, skiprows=7, dtype={"Lote": str})
             estoque_df = estoque_df[
                 [
                     "Código Simpas",
                     "Medicamento",
                     "Lote",
-                    "Data Vencimento",
                     "Quantidade Encontrada",
                     "Valor Unitário",
                     "Programa Saúde",
                 ]
             ]
-            estoque_df["Lote"] = estoque_df["Lote"].astype(str)
-            estoque_df["Data Vencimento"] = pd.to_datetime(
-                estoque_df["Data Vencimento"]
-            )
 
+            # Normalizar dados de estoque
+            estoque_df["Lote"] = estoque_df["Lote"].str.strip().str.upper()
+            estoque_df["Valor Unitário"] = pd.to_numeric(
+                estoque_df["Valor Unitário"], errors="coerce"
+            )
             estoque_df["Código Simpas"] = estoque_df["Código Simpas"].astype(str)
+
+            # Agrupar dados de estoque
             estoque_df = (
                 estoque_df.groupby(
-                    [
-                        "Código Simpas",
-                        "Medicamento",
-                        "Lote",
-                        "Data Vencimento",
-                        "Valor Unitário",
-                        "Programa Saúde",
-                    ]
+                    ["Código Simpas", "Medicamento", "Lote", "Valor Unitário", "Programa Saúde"]
                 )["Quantidade Encontrada"]
                 .sum()
                 .reset_index()
             )
 
+            # Mesclar DataFrames
             df = pd.merge(
                 conferencia_df,
                 estoque_df,
                 how="outer",
-                on=["Lote", "Medicamento", "Data Vencimento"],
+                on=["Lote", "Medicamento"],
             )
-            df = df.sort_values(by="Medicamento")
-
             df = df.rename(
                 columns={
-                    "Data Vencimento": "Validade",
                     "Quantidade Encontrada": "SIGAF",
                     "Valor Adotado": "Contagem",
                 }
             )
 
+            # Conversões para numéricos e cálculos
             df["Contagem"] = pd.to_numeric(df["Contagem"], errors="coerce")
             df["SIGAF"] = pd.to_numeric(df["SIGAF"], errors="coerce")
             df["Valor Unitário"] = pd.to_numeric(df["Valor Unitário"], errors="coerce")
 
-            df["Diferença"] = df["Contagem"] - df["SIGAF"]
-            df["Vlr Total"] = df["Contagem"] * df["Valor Unitário"]
-            df["Vlr Divergencia"] = df["Diferença"] * df["Valor Unitário"]
+            # Cálculos adicionais
+            df["Diferença"] = df["Contagem"].sub(df["SIGAF"], fill_value=0)
+            df["Vlr Total"] = df["Contagem"].mul(df["Valor Unitário"], fill_value=0)
+            df["Vlr Divergencia"] = df["Diferença"].mul(df["Valor Unitário"], fill_value=0)
 
+            # Validar registros após o processamento
+            st.write("Quantidade de registros antes e depois das operações:")
+            st.write("Registros na conferência:", len(conferencia_df))
+            st.write("Registros no estoque:", len(estoque_df))
+            st.write("Registros após mesclagem:", len(df))
+
+            # Ordenar e selecionar colunas
             new = [
                 "Código Simpas",
                 "Medicamento",
                 "Lote",
-                "Validade",
                 "Contagem",
                 "SIGAF",
                 "Diferença",
@@ -626,37 +620,34 @@ def main():
             ]
             df = df[new]
             df = df.sort_values(by="Medicamento")
-            # Estilizar o DataFrame
+
+            # Estilizar o DataFrame para Excel
             wb = estilizar_dataframe(df, "Apuração")
             ws = wb.active
-            # Começando da linha 2, assumindo que a primeira linha é o cabeçalho
+
+            # Adicionar fórmulas no Excel
             for row in range(2, len(df) + 2):
-                # Fórmula para cada linha
-                ws[f"G{row}"] = f"=E{row}-F{row}"
-                ws[f"I{row}"] = f"=E{row}*H{row}"
-                ws[f"J{row}"] = f"=G{row}*H{row}"
+                ws[f"F{row}"] = f"=D{row}-E{row}"
+                ws[f"H{row}"] = f"=D{row}*G{row}"
+                ws[f"I{row}"] = f"=F{row}*G{row}"
 
-            # Inserir "ASS" na célula abaixo da última linha
             ultima_linha = len(df) + 2
-
+            ws[f"H{ultima_linha}"] = f"=SUM(H2:H{ultima_linha-1})"
             ws[f"I{ultima_linha}"] = f"=SUM(I2:I{ultima_linha-1})"
-            ws[f"J{ultima_linha}"] = f"=SUM(J2:J{ultima_linha-1})"
+            ws[f"I{ultima_linha+1}"] = f"=I{ultima_linha}/H{ultima_linha}"
 
-            ws[f"J{ultima_linha+1}"] = f"=J{ultima_linha}/I{ultima_linha}"
-            # Configurar o cabeçalho
-            ws.oddHeader.center.text = (
-                f"CONTAGEM x SIGAF\n{item_selecionado2}"  # Texto no centro do cabeçalho
-            )
-            ws.oddHeader.center.size = 12  # Tamanho da fonte
-            ws.oddHeader.center.font = "Arial,Bold"  # Fonte e estilo do cabeçalho
+            # Configurar cabeçalho do Excel
+            ws.oddHeader.center.text = f"CONTAGEM x SIGAF - Relatório: {item_selecionado2}\n{pd.Timestamp.now().strftime('%d/%m/%Y')}"
+            ws.oddHeader.center.size = 12
+            ws.oddHeader.center.font = "Arial,Bold"
 
+            # Converter para bytes e preparar para download
             excel_bytes = to_excel_bytes(wb)
 
-            # Exibir tabelas resultantes
+            # Exibir resultado e download
             st.write("Resultado da Análise:")
             st.dataframe(df)
 
-            # Botão de download
             st.download_button(
                 label="Baixar Planilha de Apuração",
                 data=excel_bytes,
