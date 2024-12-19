@@ -197,7 +197,8 @@ def main():
             "Gerar lista de Contagem (Planilha EGBA)",
             "Juntar Planilhas de Estoque",
             "Gerar apuração SIGAF",
-            "Gerar apuração SIGAF V2",
+            "Gerar apuração SIGAF V2.1",
+            "Gerar apuração SIGAF V2.2",
             "Gerar apuração SIMPAS",
         ],
     )
@@ -514,9 +515,157 @@ def main():
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     )
 
-
     elif opcao == "Gerar apuração SIGAF":
-        st.subheader("Gerar Apuração SIGAF V2")
+        st.subheader("Gerar Apuração SIGAF")
+        item_selecionado2 = st.text_input("Nome da Lista:")
+
+        conferencia_file = st.file_uploader(
+            "Upload da planilha de Conferencia:", type=["xlsx"]
+        )
+        estoque_file2 = st.file_uploader(
+            "Upload da planilha de Estoque(Nova):", type=["xls"]
+        )
+
+        if estoque_file2 and conferencia_file:
+            conferencia_df = carregar_planilha(conferencia_file, skiprows=0)
+            conferencia_df = conferencia_df[
+                ["Medicamento", "Lote", "Data Vencimento", "Valor Adotado"]
+            ]
+            conferencia_df.loc[:, "Valor Adotado"] = pd.to_numeric(
+                conferencia_df["Valor Adotado"], errors="coerce"
+            )
+
+            conferencia_df = (
+                conferencia_df.groupby(["Medicamento", "Lote", "Data Vencimento"])[
+                    "Valor Adotado"
+                ]
+                .sum()
+                .reset_index()
+            )
+            conferencia_df["Lote"] = conferencia_df["Lote"].astype(str)
+
+            conferencia_df["Lote"] = conferencia_df["Lote"].apply(
+                lambda x: str(x).upper()
+            )
+            conferencia_df["Data Vencimento"] = conferencia_df[
+                "Data Vencimento"
+            ].astype(str)
+            conferencia_df["Data Vencimento"] = pd.to_datetime(
+                conferencia_df["Data Vencimento"]
+            )
+
+            estoque_df = carregar_planilha(estoque_file2, skiprows=7)
+            estoque_df = estoque_df[
+                [
+                    "Código Simpas",
+                    "Medicamento",
+                    "Lote",
+                    "Data Vencimento",
+                    "Quantidade Encontrada",
+                    "Valor Unitário",
+                    "Programa Saúde",
+                ]
+            ]
+            estoque_df["Lote"] = estoque_df["Lote"].astype(str)
+            estoque_df["Data Vencimento"] = pd.to_datetime(
+                estoque_df["Data Vencimento"]
+            )
+
+            estoque_df["Código Simpas"] = estoque_df["Código Simpas"].astype(str)
+            estoque_df = (
+                estoque_df.groupby(
+                    [
+                        "Código Simpas",
+                        "Medicamento",
+                        "Lote",
+                        "Data Vencimento",
+                        "Valor Unitário",
+                        "Programa Saúde",
+                    ]
+                )["Quantidade Encontrada"]
+                .sum()
+                .reset_index()
+            )
+
+            df = pd.merge(
+                conferencia_df,
+                estoque_df,
+                how="outer",
+                on=["Lote", "Medicamento", "Data Vencimento"],
+            )
+            df = df.sort_values(by="Medicamento")
+
+            df = df.rename(
+                columns={
+                    "Data Vencimento": "Validade",
+                    "Quantidade Encontrada": "SIGAF",
+                    "Valor Adotado": "Contagem",
+                }
+            )
+
+            df["Contagem"] = pd.to_numeric(df["Contagem"], errors="coerce")
+            df["SIGAF"] = pd.to_numeric(df["SIGAF"], errors="coerce")
+            df["Valor Unitário"] = pd.to_numeric(df["Valor Unitário"], errors="coerce")
+
+            df["Diferença"] = df["Contagem"] - df["SIGAF"]
+            df["Vlr Total"] = df["Contagem"] * df["Valor Unitário"]
+            df["Vlr Divergencia"] = df["Diferença"] * df["Valor Unitário"]
+
+            new = [
+                "Código Simpas",
+                "Medicamento",
+                "Lote",
+                "Validade",
+                "Contagem",
+                "SIGAF",
+                "Diferença",
+                "Valor Unitário",
+                "Vlr Total",
+                "Vlr Divergencia",
+                "Programa Saúde",
+            ]
+            df = df[new]
+            df = df.sort_values(by="Medicamento")
+            # Estilizar o DataFrame
+            wb = estilizar_dataframe(df, "Apuração")
+            ws = wb.active
+            # Começando da linha 2, assumindo que a primeira linha é o cabeçalho
+            for row in range(2, len(df) + 2):
+                # Fórmula para cada linha
+                ws[f"G{row}"] = f"=E{row}-F{row}"
+                ws[f"I{row}"] = f"=E{row}*H{row}"
+                ws[f"J{row}"] = f"=G{row}*H{row}"
+
+            # Inserir "ASS" na célula abaixo da última linha
+            ultima_linha = len(df) + 2
+
+            ws[f"I{ultima_linha}"] = f"=SUM(I2:I{ultima_linha-1})"
+            ws[f"J{ultima_linha}"] = f"=SUM(J2:J{ultima_linha-1})"
+
+            ws[f"J{ultima_linha+1}"] = f"=J{ultima_linha}/I{ultima_linha}"
+            # Configurar o cabeçalho
+            ws.oddHeader.center.text = (
+                f"CONTAGEM x SIGAF\n{item_selecionado2}"  # Texto no centro do cabeçalho
+            )
+            ws.oddHeader.center.size = 12  # Tamanho da fonte
+            ws.oddHeader.center.font = "Arial,Bold"  # Fonte e estilo do cabeçalho
+
+            excel_bytes = to_excel_bytes(wb)
+
+            # Exibir tabelas resultantes
+            st.write("Resultado da Análise:")
+            st.dataframe(df)
+
+            # Botão de download
+            st.download_button(
+                label="Baixar Planilha de Apuração",
+                data=excel_bytes,
+                file_name=f"{item_selecionado2}_Apuracao {data_atual}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+
+    elif opcao == "Gerar apuração SIGAF V2.1":
+        st.subheader("Gerar Apuração SIGAF V2.1")
         st.write("Esse Cruzamento desconsidera a data de Validade e obriga utilizar planilha compilada em 'Juntar Planilhas de Estoque'.")
 
         item_selecionado2 = st.text_input("Nome da Lista:")
@@ -525,7 +674,7 @@ def main():
             "Upload da planilha de Conferencia:", type=["xlsx"]
         )
         estoque_file2 = st.file_uploader(
-            "Upload da planilha de Estoque (Nova):", type=["xls"]
+            "Upload da planilha de Estoque (Nova):", type=["xlsx"]
         )
 
         if estoque_file2 and conferencia_file:
@@ -655,9 +804,9 @@ def main():
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
 
-    elif opcao == "Gerar apuração SIGAF V2":
-        st.subheader("Gerar Apuração SIGAF V2")
-        st.write("Esse Cruzamento considera a coluna 'Programa' em conferencia.")
+    elif opcao == "Gerar apuração SIGAF V2.2":
+        st.subheader("Gerar Apuração SIGAF V2.2")
+        st.write("Esse Cruzamento desconsidera a data de Validade, necessita da coluna 'Programa' e obriga utilizar planilha compilada em 'Juntar Planilhas de Estoque'.")
 
         item_selecionado2 = st.text_input("Nome da Lista:")
 
