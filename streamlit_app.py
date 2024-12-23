@@ -183,7 +183,7 @@ def juntar_conferencia(arquivos):
     lista_dfs = []
     for arquivo in arquivos:
         try:
-            df = pd.read_excel(arquivo, skiprows=1,dtype={"Lote": str, "Valor Adotado":str}) # Ler o Excel
+            df = pd.read_excel(arquivo, skiprows=0,dtype={"Lote": str, "Valor Adotado":str}) # Ler o Excel
             lista_dfs.append(df)
         except Exception as e:
             st.error(f"Erro ao ler o arquivo {arquivo.name}: {e}")
