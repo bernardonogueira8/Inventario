@@ -179,6 +179,23 @@ def juntar_planilhas(arquivos):
         st.warning("Nenhum arquivo válido foi selecionado.")
         return None
 
+def juntar_conferencia(arquivos):
+    lista_dfs = []
+    for arquivo in arquivos:
+        try:
+            df = pd.read_excel(arquivo, skiprows=1,dtype={"Lote": str, "Valor Adotado":str}) # Ler o Excel
+            lista_dfs.append(df)
+        except Exception as e:
+            st.error(f"Erro ao ler o arquivo {arquivo.name}: {e}")
+    
+    if lista_dfs:
+        planilha_unificada = pd.concat(lista_dfs, ignore_index=True)
+        return planilha_unificada
+    else:
+        st.warning("Nenhum arquivo válido foi selecionado.")
+        return None
+
+
 # Validação de colunas obrigatórias
 def validar_colunas(df, required_columns, nome):
     if not required_columns.issubset(df.columns):
@@ -514,6 +531,35 @@ def main():
                         file_name="planilha_unificada.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     )
+
+    elif opcao == "Juntar Planilhas de Conferencia":
+        st.header("Upload de Planilhas")
+
+        arquivos = st.file_uploader("Selecione os arquivos Excel", type=["xls", "xlsx"], accept_multiple_files=True)
+
+        if arquivos:
+            st.success(f"{len(arquivos)} arquivo(s) carregado(s). Clique no botão abaixo para processar.")
+            
+            if st.button("Juntar Planilhas"):
+                planilha_unificada = juntar_conferencia(arquivos)
+                
+                if planilha_unificada is not None:
+                    st.success("Planilhas unificadas com sucesso!")
+                    st.dataframe(planilha_unificada)
+
+                    # Download do resultado em Excel
+                    buffer = BytesIO()
+                    with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+                        planilha_unificada.to_excel(writer, index=False, sheet_name='Unificada')
+                    buffer.seek(0)
+
+                    st.download_button(
+                        label="Baixar Planilha Unificada",
+                        data=buffer,
+                        file_name="planilha_unificada.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+
 
     elif opcao == "Gerar apuração SIGAF":
         st.subheader("Gerar Apuração SIGAF")
