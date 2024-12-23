@@ -213,6 +213,7 @@ def main():
             "Gerar lista de Contagem (Com Mapeamento)",
             "Gerar lista de Contagem (Planilha EGBA)",
             "Juntar Planilhas de Estoque",
+            "Juntar Planilhas de Conferencia",
             "Gerar apuração SIGAF",
             "Gerar apuração SIGAF V2.1",
             "Gerar apuração SIGAF V2.2",
