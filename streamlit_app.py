@@ -988,7 +988,7 @@ def main():
         st.subheader("Gerar Apuração SIMPAS")
         item_selecionado3 = st.text_input("Nome da Lista:")
         estoque_file3 = st.file_uploader(
-            "Upload da planilha de Estoque Final:", type=["xlsx"]
+            "Upload da planilha de Estoque Final:", type=["xls"]
         )
         if estoque_file3:
 
