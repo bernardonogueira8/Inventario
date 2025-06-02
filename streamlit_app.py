@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+import io
 import tempfile
 
 def processar_planilha_simplificada(file):
@@ -78,22 +79,30 @@ with st.expander("1. Upload dos Arquivos"):
         if df_unificado is not None:
             st.success("Planilhas processadas com sucesso!")
             st.dataframe(df_unificado.head())
+        
+            buffer = io.BytesIO()
+            df_unificado.to_excel(buffer, index=False, engine='openpyxl')
+            buffer.seek(0)
+            st.download_button("📥 Baixar Planilha Unificada", buffer,
+                               file_name="planilha_unificada.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
-                df_unificado.to_excel(tmp.name, index=False)
-                st.download_button("📥 Baixar Planilha Unificada", tmp.name, file_name="planilha_unificada.xlsx")
 
 with st.expander("2. Filtro por Último ID (Hosplog)"):
     planilha_hosp = st.file_uploader("Carregue a planilha da Hosplog", type=["xlsx"])
     if planilha_hosp:
-        df_hosp = pd.read_excel(planilha_hosp)
-        df_filtrado = filtrar_maior_id_por_posicao(df_hosp)
-        st.success("Filtro aplicado com sucesso!")
-        st.dataframe(df_filtrado.head())
+            df_hosp = pd.read_excel(planilha_hosp)
+            df_filtrado = filtrar_maior_id_por_posicao(df_hosp)
+            st.success("Filtro aplicado com sucesso!")
+            st.dataframe(df_filtrado.head())
+        
+            buffer = io.BytesIO()
+            df_filtrado.to_excel(buffer, index=False, engine='openpyxl')
+            buffer.seek(0)
+            st.download_button("📥 Baixar Filtro Hosplog", buffer,
+                               file_name="filtrado_hosplog.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
-            df_filtrado.to_excel(tmp.name, index=False)
-            st.download_button("📥 Baixar Filtro Hosplog", tmp.name, file_name="filtrado_hosplog.xlsx")
 
 with st.expander("3. Comparação Hosplog x Sesab"):
     col1, col2 = st.columns(2)
@@ -106,13 +115,16 @@ with st.expander("3. Comparação Hosplog x Sesab"):
         df_hosp = pd.read_excel(planilha_hosp)
         df_sesab = pd.read_excel(planilha_sesab)
         df_cruzado = comparacao_hosp(df_hosp, df_sesab)
-
+        
         st.success("Comparação realizada com sucesso!")
         st.dataframe(df_cruzado.head())
-
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
-            df_cruzado.to_excel(tmp.name, index=False)
-            st.download_button("📥 Baixar Cruzamento", tmp.name, file_name="cruzamento_hosp_sesab.xlsx")
+        
+        buffer = io.BytesIO()
+        df_cruzado.to_excel(buffer, index=False, engine='openpyxl')
+        buffer.seek(0)
+        st.download_button("📥 Baixar Cruzamento", buffer,
+                       file_name="cruzamento_hosp_sesab.xlsx",
+                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             
 with st.expander("4. Processar Planilha Simples (header=7)"):
     arquivo_simples = st.file_uploader("Selecione um arquivo .xls (Simples)", type=["xls"], key="planilha_simples")
@@ -122,7 +134,11 @@ with st.expander("4. Processar Planilha Simples (header=7)"):
         if df_simples is not None:
             st.success("Planilha processada com sucesso!")
             st.dataframe(df_simples.head())
+        
+            buffer = io.BytesIO()
+            df_simples.to_excel(buffer, index=False, engine='openpyxl')
+            buffer.seek(0)
+            st.download_button("📥 Baixar Planilha Processada", buffer,
+                               file_name="planilha_simples.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
-                df_simples.to_excel(tmp.name, index=False)
-                st.download_button("📥 Baixar Planilha Processada", tmp.name, file_name="planilha_simples.xlsx")
