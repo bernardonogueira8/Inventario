@@ -3,6 +3,14 @@ import pandas as pd
 import os
 import tempfile
 
+def processar_planilha_simplificada(file):
+    try:
+        df = pd.read_excel(file, header=7)
+        df = df[['Medicamento', 'Lote', 'Data Vencimento', 'Quantidade Encontrada']]
+        return df.dropna()
+    except Exception as e:
+        st.warning(f"Erro ao processar {file.name}: {e}")
+        return None
 
 def processar_e_juntar_planilhas(pasta_raw):
     lista_dfs = []
@@ -105,3 +113,16 @@ with st.expander("3. Comparação Hosplog x Sesab"):
         with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
             df_cruzado.to_excel(tmp.name, index=False)
             st.download_button("📥 Baixar Cruzamento", tmp.name, file_name="cruzamento_hosp_sesab.xlsx")
+            
+with st.expander("4. Processar Planilha Simples (header=7)"):
+    arquivo_simples = st.file_uploader("Selecione um arquivo .xls (Simples)", type=["xls"], key="planilha_simples")
+
+    if arquivo_simples:
+        df_simples = processar_planilha_simplificada(arquivo_simples)
+        if df_simples is not None:
+            st.success("Planilha processada com sucesso!")
+            st.dataframe(df_simples.head())
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
+                df_simples.to_excel(tmp.name, index=False)
+                st.download_button("📥 Baixar Planilha Processada", tmp.name, file_name="planilha_simples.xlsx")
