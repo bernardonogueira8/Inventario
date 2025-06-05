@@ -1,8 +1,15 @@
-import streamlit as st
 import pandas as pd
-import os
-import io
-import tempfile
+import streamlit as st
+import string
+from io import BytesIO
+from datetime import datetime
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, Border, Side
+from openpyxl.utils.dataframe import dataframe_to_rows
+from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.page import PageMargins
+from datetime import datetime
+data_atual = datetime.now().strftime("%Y-%m-%d")
 
 
 def carregar_planilha(file, skiprows):
@@ -192,57 +199,57 @@ with st.expander("4. Processar Planilha Simples (header=7)"):
 
 with st.expander("5. Gerar apuração SIMPAS"):
     st.subheader("Gerar Apuração SIMPAS")
-        item_selecionado3 = st.text_input("Nome da Lista:")
-        estoque_file3 = st.file_uploader(
-            "Upload da planilha de Estoque Final:", type=["xls"]
-        )
-        if estoque_file3:
+    item_selecionado3 = st.text_input("Nome da Lista:")
+    estoque_file3 = st.file_uploader(
+        "Upload da planilha de Estoque Final:", type=["xls"]
+    )
+    if estoque_file3:
 
-            estoque_df = carregar_planilha(estoque_file3, skiprows=7)
-            estoque_df = estoque_df[
+        estoque_df = carregar_planilha(estoque_file3, skiprows=7)
+        estoque_df = estoque_df[
+            [
+                "Código Simpas",
+                "Medicamento",
+                "Quantidade Encontrada",
+                "Programa Saúde",
+            ]
+        ]
+        estoque_df["Código Simpas"] = estoque_df["Código Simpas"].astype(str)
+        df = (
+            estoque_df.groupby(
                 [
                     "Código Simpas",
                     "Medicamento",
-                    "Quantidade Encontrada",
                     "Programa Saúde",
                 ]
-            ]
-            estoque_df["Código Simpas"] = estoque_df["Código Simpas"].astype(str)
-            df = (
-                estoque_df.groupby(
-                    [
-                        "Código Simpas",
-                        "Medicamento",
-                        "Programa Saúde",
-                    ]
-                )["Quantidade Encontrada"]
-                .sum()
-                .reset_index()
-            )
-            df = df.sort_values(by="Código Simpas")
-            df = df.rename(
-                columns={
-                    "Quantidade Encontrada": "Quantidade",
-                }
-            )
-            new = ["Código Simpas", "Medicamento", "Quantidade", "Programa Saúde"]
-            df = df[new]
+            )["Quantidade Encontrada"]
+            .sum()
+            .reset_index()
+        )
+        df = df.sort_values(by="Código Simpas")
+        df = df.rename(
+            columns={
+                "Quantidade Encontrada": "Quantidade",
+            }
+        )
+        new = ["Código Simpas", "Medicamento", "Quantidade", "Programa Saúde"]
+        df = df[new]
 
-            # Estilizar o DataFrame
-            wb = estilizar_dataframe(df, "Apuração SIMPAS")
-            excel_bytes = to_excel_bytes(wb)
+        # Estilizar o DataFrame
+        wb = estilizar_dataframe(df, "Apuração SIMPAS")
+        excel_bytes = to_excel_bytes(wb)
 
-            # Exibir tabelas resultantes
-            st.write("Resultado da Análise:")
-            st.dataframe(df)
+        # Exibir tabelas resultantes
+        st.write("Resultado da Análise:")
+        st.dataframe(df)
 
-            # Botão de download
-            st.download_button(
-                label="Baixar Planilha de Apuração SIMPAS",
-                data=excel_bytes,
-                file_name=f"{item_selecionado3} Apuracao_SIMPAS {data_atual}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            )
+        # Botão de download
+        st.download_button(
+            label="Baixar Planilha de Apuração SIMPAS",
+            data=excel_bytes,
+            file_name=f"{item_selecionado3} Apuracao_SIMPAS {data_atual}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
 
 
 
