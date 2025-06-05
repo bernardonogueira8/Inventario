@@ -4,6 +4,54 @@ import os
 import io
 import tempfile
 
+
+def carregar_planilha(file, skiprows):
+    try:
+        planilha = pd.read_excel(file, skiprows=skiprows)
+        return planilha
+    except Exception as e:
+        st.error(f"Erro ao carregar o arquivo: {e}")
+        return None
+
+def estilizar_dataframe(df, sheet_name):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = sheet_name
+
+    # Adicionar cabeçalho
+    for r in dataframe_to_rows(df, index=False, header=True):
+        ws.append(r)
+
+    # Estilo do cabeçalho
+    header_font = Font(bold=True)
+    alignment = Alignment(horizontal="center", vertical="center")
+    thin_border = Border(
+        left=Side(style="thin"),
+        right=Side(style="thin"),
+        top=Side(style="thin"),
+        bottom=Side(style="thin"),
+    )
+
+    for cell in ws["1:1"]:
+        cell.font = header_font
+        cell.alignment = alignment
+        cell.border = thin_border
+
+    # Estilo das células
+    for row in ws.iter_rows(
+        min_row=2, max_row=ws.max_row, min_col=1, max_col=ws.max_column
+    ):
+        for cell in row:
+            cell.border = thin_border
+
+    return wb
+
+def to_excel_bytes(wb):
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer
+    
 def processar_planilha_simplificada(file):
     try:
         df = pd.read_excel(file, header=7)
@@ -141,4 +189,62 @@ with st.expander("4. Processar Planilha Simples (header=7)"):
             st.download_button("📥 Baixar Planilha Processada", buffer,
                                file_name="planilha_simples.xlsx",
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+with st.expander("5. Gerar apuração SIMPAS"):
+    st.subheader("Gerar Apuração SIMPAS")
+        item_selecionado3 = st.text_input("Nome da Lista:")
+        estoque_file3 = st.file_uploader(
+            "Upload da planilha de Estoque Final:", type=["xls"]
+        )
+        if estoque_file3:
+
+            estoque_df = carregar_planilha(estoque_file3, skiprows=7)
+            estoque_df = estoque_df[
+                [
+                    "Código Simpas",
+                    "Medicamento",
+                    "Quantidade Encontrada",
+                    "Programa Saúde",
+                ]
+            ]
+            estoque_df["Código Simpas"] = estoque_df["Código Simpas"].astype(str)
+            df = (
+                estoque_df.groupby(
+                    [
+                        "Código Simpas",
+                        "Medicamento",
+                        "Programa Saúde",
+                    ]
+                )["Quantidade Encontrada"]
+                .sum()
+                .reset_index()
+            )
+            df = df.sort_values(by="Código Simpas")
+            df = df.rename(
+                columns={
+                    "Quantidade Encontrada": "Quantidade",
+                }
+            )
+            new = ["Código Simpas", "Medicamento", "Quantidade", "Programa Saúde"]
+            df = df[new]
+
+            # Estilizar o DataFrame
+            wb = estilizar_dataframe(df, "Apuração SIMPAS")
+            excel_bytes = to_excel_bytes(wb)
+
+            # Exibir tabelas resultantes
+            st.write("Resultado da Análise:")
+            st.dataframe(df)
+
+            # Botão de download
+            st.download_button(
+                label="Baixar Planilha de Apuração SIMPAS",
+                data=excel_bytes,
+                file_name=f"{item_selecionado3} Apuracao_SIMPAS {data_atual}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+
+
+
+
 
