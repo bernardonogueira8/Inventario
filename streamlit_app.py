@@ -1,6 +1,6 @@
+import os
 import pandas as pd
 import streamlit as st
-import string
 from io import BytesIO
 from datetime import datetime
 from openpyxl import Workbook
@@ -8,7 +8,7 @@ from openpyxl.styles import Font, Alignment, Border, Side
 from openpyxl.utils.dataframe import dataframe_to_rows
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.page import PageMargins
-from datetime import datetime
+
 data_atual = datetime.now().strftime("%Y-%m-%d")
 
 
@@ -212,7 +212,7 @@ with st.expander("4. Processar Planilha de Estoque AFSESAB (Cabeçalho começand
             st.success("Planilha processada com sucesso!")
             st.dataframe(df_simples.head())
         
-            buffer = io.BytesIO()
+            buffer = BytesIO()
             df_simples.to_excel(buffer, index=False, engine='openpyxl')
             buffer.seek(0)
             st.download_button("📥 Baixar Planilha Processada", buffer,
