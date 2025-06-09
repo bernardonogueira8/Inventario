@@ -119,31 +119,53 @@ def comparacao_hosp(df_hosp, df_sesab):
 # --- Streamlit App ---
 st.title("📊 Processador de Planilhas de Inventário")
 
-with st.expander("1. Upload dos Arquivos"):
-    pasta_raw = st.file_uploader("Selecione múltiplos arquivos .xls ou .xlsx", accept_multiple_files=True,
-                                 type=['xls', 'xlsx'])
+with st.expander("1. Processar planilhas EspelhoInventario Hosplog"):
+    st.markdown("### 📂 Selecione as planilhas EspelhoInventario (.xlsx/.xls)")
 
-    if pasta_raw:
-        temp_dir = tempfile.mkdtemp()
-        for uploaded_file in pasta_raw:
-            file_path = os.path.join(temp_dir, uploaded_file.name)
-            with open(file_path, 'wb') as f:
-                f.write(uploaded_file.read())
-        df_unificado = processar_e_juntar_planilhas(temp_dir)
+    arquivos_selecionados = st.file_uploader(
+        "Selecione uma ou mais planilhas",
+        type=["xlsx", "xls"],
+        accept_multiple_files=True,
+        key="espelho_inventario"
+    )
 
-        if df_unificado is not None:
-            st.success("Planilhas processadas com sucesso!")
+    if arquivos_selecionados:
+        lista_dfs = []
+
+        for arquivo in arquivos_selecionados:
+            try:
+                df = pd.read_excel(arquivo, header=12)
+                df = df[['CodAuxiliar - Produto / Fabricante / Marca / Embalagem',
+                         'Lote', 'Validade', 'Endereço', 'Posição', 'Cont. 1']]
+                
+                df['Nome Medicamento'] = df['CodAuxiliar - Produto / Fabricante / Marca / Embalagem'] \
+                    .str.extract(r'-\s*(.*?)\s*\[')
+                
+                df = df[['Endereço', 'Posição', 'Nome Medicamento', 'Lote', 'Validade', 'Cont. 1']]
+                df['Planilha'] = arquivo.name
+                df = df.dropna()
+                
+                lista_dfs.append(df)
+            except Exception as e:
+                st.warning(f"Erro ao processar {arquivo.name}: {e}")
+
+        if lista_dfs:
+            df_unificado = pd.concat(lista_dfs, ignore_index=True)
+            st.success(f"✅ {len(df_unificado)} registros processados com sucesso!")
             st.dataframe(df_unificado.head())
-        
-            buffer = io.BytesIO()
+
+            buffer = BytesIO()
             df_unificado.to_excel(buffer, index=False, engine='openpyxl')
             buffer.seek(0)
+
             st.download_button("📥 Baixar Planilha Unificada", buffer,
                                file_name="planilha_unificada.xlsx",
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        else:
+            st.warning("⚠️ Nenhum dado válido foi processado.")
 
 
-with st.expander("2. Filtro por Último ID (Hosplog)"):
+with st.expander("2. Filtro por Último ID (Hosplog) - Planilha inventario"):
     planilha_hosp = st.file_uploader("Carregue a planilha da Hosplog", type=["xlsx"])
     if planilha_hosp:
             df_hosp = pd.read_excel(planilha_hosp)
@@ -181,7 +203,7 @@ with st.expander("3. Comparação Hosplog x Sesab"):
                        file_name="cruzamento_hosp_sesab.xlsx",
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             
-with st.expander("4. Processar Planilha Simples (header=7)"):
+with st.expander("4. Processar Planilha de Estoque AFSESAB (Cabeçalho começando na 8 linha)"):
     arquivo_simples = st.file_uploader("Selecione um arquivo .xls (Simples)", type=["xls"], key="planilha_simples")
 
     if arquivo_simples:
